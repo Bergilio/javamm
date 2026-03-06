@@ -68,7 +68,7 @@ type
 methodDecl locals[boolean isStatic=false]
     : (visibility=(PUBLIC|PRIVATE|PROTECTED))? (STATIC {$isStatic=true;})?
       returnType=type name=ID
-      '(' (params += param (',' params += param)*)? ')'
+      '(' (param (',' param)*)? ')'
       '{' varDecl* stmt* '}'
     ;
 
@@ -90,8 +90,8 @@ expr
     | expr '[' expr ']' #ArrayAcess
     | expr '.' LENGTH #LengthOperator
     | expr '.' func=ID '(' (expr (',' expr)* )? ')' #FunctionCall
-    | NEW INT '[' expr ']' ('{' (values += expr (',' values += expr)*) '}')? #ArrayAlloc
-    | NEW classType=ID '(' (params += expr (',' params += expr)*)? ')' #Constructor
+    | NEW INT '[' expr ']' ('{' (expr (',' expr)*) '}')? #ArrayAlloc
+    | NEW classType=ID '(' (expr (',' expr)*)? ')' #Constructor
     | op=('++'|'--') expr #UnaryPostExpr
     | op=('!'|'+'|'-'|'++'|'--') expr #UnaryPreExpr
     | expr op=('*'|'/'|'%') expr #BinaryExpr
