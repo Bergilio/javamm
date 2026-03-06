@@ -9,8 +9,8 @@ IMPORT : 'import' ;
 CLASS : 'class' ;
 EXTENDS : 'extends' ;
 PUBLIC : 'public' ;
-// PRIVATE : 'private' ;
-// PROTECTED : 'protected' ;
+PRIVATE : 'private' ;
+PROTECTED : 'protected' ;
 STATIC : 'static' ;
 RETURN : 'return' ;
 INT : 'int' ;
@@ -19,6 +19,8 @@ VOID : 'void' ;
 IF : 'if' ;
 ELSE : 'else' ;
 WHILE : 'while' ;
+FOR : 'for' ;
+DO : 'do' ;
 LENGTH : 'length' ;
 NEW : 'new' ;
 THIS : 'this' ;
@@ -47,13 +49,12 @@ importDecl
 classDecl
     : CLASS name=ID (EXTENDS extension=ID)?
     '{' 
-    varDecl*
-    methodDecl* 
+    (varDecl | methodDecl)* 
     '}'
     ;
 
 varDecl
-    : typeNode=type name=ID ';'
+    : typeNode=type name=ID ('=' expr)? ';'
     ;
 
 param
@@ -65,7 +66,7 @@ type
     ;
 
 methodDecl locals[boolean isStatic=false]
-    : (visibility=PUBLIC)? (STATIC {$isStatic=true;})?
+    : (visibility=(PUBLIC|PRIVATE|PROTECTED))? (STATIC {$isStatic=true;})?
       returnType=type name=ID
       '(' (params += param (',' params += param)*)? ')'
       '{' varDecl* stmt* '}'
@@ -75,27 +76,33 @@ stmt
     : var=ID '=' expr ';' #AssignStmt
     | RETURN (expr)? ';' #ReturnStmt
     | '{' stmt* '}' #Block
-    | IF '(' expr ')' stmt ELSE stmt #IfStmt
+    | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
     | WHILE '(' expr ')' stmt #WhileStmt
+    | FOR '(' stmt ';' expr ';' expr ')' #ForStmt // stmt in the for as to be Assign
+    | DO stmt WHILE '(' expr ')' #DoWhileStmt // Does stmt have to be a block?
     | expr ';'  #ExprStmt
     | ID '[' expr ']' '=' expr ';' #AssignArrayElementStmt
     ;
 
+// Extend to Multidimensiona Arrays?
 expr
     : '(' expr ')' #Parenthesis
     | expr '[' expr ']' #ArrayAcess
     | expr '.' LENGTH #LengthOperator
     | expr '.' func=ID '(' (expr (',' expr)* )? ')' #FunctionCall
-    | NEW INT '[' expr ']' #ArrayAlloc
-    | NEW class=ID '(' ')' #ClassCreation
-    | op='!' expr #UnaryExpr
-    | expr op=('*'|'/') expr #BinaryExpr
+    | NEW INT '[' expr ']' ('{' (values += expr (',' values += expr)*) '}')? #ArrayAlloc
+    | NEW classType=ID '(' (params += expr (',' params += expr)*)? ')' #Constructor
+    | op=('++'|'--') expr #UnaryPostExpr
+    | op=('!'|'+'|'-'|'++'|'--') expr #UnaryPreExpr
+    | expr op=('*'|'/'|'%') expr #BinaryExpr
     | expr op=('+'|'-') expr #BinaryExpr
-    | expr op='<' expr #BinaryExpr
+    | expr op=('<'|'>'|'<='|'>=') expr #BinaryExpr
+    | expr op=('=='|'!=') expr #BinaryExpr
     | expr op='&&' expr #BinaryExpr
     | expr op='||' expr #BinaryExpr
     | value=INTEGER #IntegerLiteral
     | value=BOOL #BooleanLiteral
     | name=ID #VarRefExpr
-    | THIS #CurrentObject
+    | THIS #This
+    | func=ID '(' (expr (',' expr)* )? ')' #ImplicitThisFunctionCall
     ;
