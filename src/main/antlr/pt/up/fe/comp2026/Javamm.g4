@@ -81,18 +81,16 @@ stmt
     | FOR '(' stmt ';' expr ';' expr ')' #ForStmt // stmt in the for has to be Assign
     | DO stmt WHILE '(' expr ')' #DoWhileStmt // Does stmt have to be a block?
     | expr ';'  #ExprStmt
-    | ID '[' expr ']' '=' expr ';' #AssignArrayElementStmt
-    | ID '[' expr ']' '[' expr ']' '=' expr ';' #AssignMultidimArrayElementStmt
+    | ID ('[' expr ']')+ '=' expr ';' #AssignArrayElementStmt
     ;
 
 // Extend to Multidimensional Arrays?
 expr
     : '(' expr ')' #Parenthesis
-    | expr '[' expr ']' #ArrayAcess
-    | expr '[' expr ']' '[' expr ']' #MultidimArrayAcess
+    | expr ('[' expr ']')+ #ArrayAcess
     | expr '.' LENGTH #LengthOperator
     | expr '.' func=ID '(' (expr (',' expr)* )? ')' #FunctionCall
-    | NEW INT '[' expr ']' ('{' (expr (',' expr)*) '}')? #ArrayAlloc
+    | NEW INT ('[' expr ']')+ ('{' (expr (',' expr)*) '}')? #ArrayAlloc
     | NEW classType=ID '(' (expr (',' expr)*)? ')' #Constructor
     | op=('++'|'--') expr #UnaryPostExpr
     | op=('!'|'+'|'-'|'++'|'--') expr #UnaryPreExpr
