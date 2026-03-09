@@ -78,16 +78,18 @@ stmt
     | '{' stmt* '}' #Block
     | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
     | WHILE '(' expr ')' stmt #WhileStmt
-    | FOR '(' stmt ';' expr ';' expr ')' #ForStmt // stmt in the for as to be Assign
+    | FOR '(' stmt ';' expr ';' expr ')' #ForStmt // stmt in the for has to be Assign
     | DO stmt WHILE '(' expr ')' #DoWhileStmt // Does stmt have to be a block?
     | expr ';'  #ExprStmt
     | ID '[' expr ']' '=' expr ';' #AssignArrayElementStmt
+    | ID '[' expr ']' '[' expr ']' '=' expr ';' #AssignMultidimArrayElementStmt
     ;
 
-// Extend to Multidimensiona Arrays?
+// Extend to Multidimensional Arrays?
 expr
     : '(' expr ')' #Parenthesis
     | expr '[' expr ']' #ArrayAcess
+    | expr '[' expr ']' '[' expr ']' #MultidimArrayAcess
     | expr '.' LENGTH #LengthOperator
     | expr '.' func=ID '(' (expr (',' expr)* )? ')' #FunctionCall
     | NEW INT '[' expr ']' ('{' (expr (',' expr)*) '}')? #ArrayAlloc
