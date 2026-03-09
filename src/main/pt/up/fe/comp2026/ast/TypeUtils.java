@@ -40,6 +40,14 @@ public class TypeUtils {
         return JmmPrimitiveType.INT;
     }
 
+    public static JmmPrimitiveType boolType() {
+        return JmmPrimitiveType.BOOLEAN;
+    }
+
+    public static JmmPrimitiveType voidType() {
+        return JmmPrimitiveType.VOID;
+    }
+
     public JmmType convertType(JmmNode typeNode) {
         assert (TYPE.check(typeNode));
 
@@ -60,6 +68,7 @@ public class TypeUtils {
             case INTEGER_LITERAL -> intType();
             case BINARY_EXPR -> getBinExprType(expr);
             case VAR_REF_EXPR -> getVarExprType(expr);
+            case BOOLEAN_LITERAL -> boolType();
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -87,7 +96,8 @@ public class TypeUtils {
         String operator = binaryExpr.get("op");
 
         return switch (operator) {
-            case "+", "*" -> intType();
+            case "+", "*", "/", "-", "%" -> intType();
+            case "&&", "||", "==", "!=", "<", ">", "<=", ">=" -> boolType();
             default ->
                     throw new RuntimeException("Unknown operator '" + operator + "' of expression '" + binaryExpr + "'");
         };
