@@ -62,7 +62,7 @@ param
     ;
 
 type
-    : name=(INT|BOOLEAN|VOID|ID) ('[' ']')?
+    : name=(INT|BOOLEAN|VOID|ID) ('[' ']')*
     ;
 
 methodDecl locals[boolean isStatic=false]
@@ -78,8 +78,8 @@ stmt
     | '{' stmt* '}' #Block
     | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
     | WHILE '(' expr ')' stmt #WhileStmt
-    | FOR '(' stmt ';' expr ';' expr ')' #ForStmt // stmt in the for has to be Assign
-    | DO stmt WHILE '(' expr ')' #DoWhileStmt // Does stmt have to be a block?
+    | FOR '(' (ID '=' expr)? ';' (expr)? ';' ((ID '=' expr) | (ID ('++'|'--')) | (('++'|'--') ID))? ')' stmt #ForStmt // stmt in the for has to be Assign
+    | DO stmt WHILE '(' expr ')' ';' #DoWhileStmt // Does stmt have to be a block?
     | expr ';'  #ExprStmt
     | ID ('[' expr ']')+ '=' expr ';' #AssignArrayElementStmt
     ;
@@ -90,7 +90,8 @@ expr
     | expr ('[' expr ']')+ #ArrayAcess
     | expr '.' LENGTH #LengthOperator
     | expr '.' func=ID '(' (expr (',' expr)* )? ')' #FunctionCall
-    | NEW INT ('[' expr ']')+ ('{' (expr (',' expr)*) '}')? #ArrayAlloc
+    | NEW INT ('[' expr ']')+ ('{' (expr (',' expr)*)? '}')? #ArrayAlloc
+    | NEW INT ('[' ']')+ ('{' (expr (',' expr)*)? '}') #ArrayAlloc
     | NEW classType=ID '(' (expr (',' expr)*)? ')' #Constructor
     | op=('++'|'--') expr #UnaryPostExpr
     | op=('!'|'+'|'-'|'++'|'--') expr #UnaryPreExpr
@@ -103,6 +104,6 @@ expr
     | value=INTEGER #IntegerLiteral
     | value=BOOL #BooleanLiteral
     | name=ID #VarRefExpr
-    | THIS #This
+    | THIS '.' expr #This
     | func=ID '(' (expr (',' expr)* )? ')' #ImplicitThisFunctionCall
     ;
