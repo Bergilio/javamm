@@ -17,6 +17,7 @@ import pt.up.fe.comp2026.ast.TypeUtils;
 import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
 import pt.up.fe.specs.util.SpecsCheck;
 
+import java.lang.reflect.Type;
 import java.util.*;
 
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
@@ -93,21 +94,53 @@ public class JmmSymbolTableBuilder {
     private MethodSymbol buildMethod(JmmNode method) {
         var methodName = method.get("name");
 
-        System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming return type of method is always int, and always has a single int parameter, needs to be expanded");
-        var returnType = TypeUtils.intType();
+        //System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming return type of method is always int, and always has a single int parameter, needs to be expanded");
+        var type = method.getChild(0).get("name");
+        JmmPrimitiveType returnType;
+        switch (type) {
+            case "int" -> returnType = TypeUtils.intType();
+            case "bool" -> returnType = TypeUtils.boolType();
+            case "void" -> returnType = TypeUtils.voidType();
+            default ->
+                    throw new RuntimeException("Can't compute type for method '" + method.get("name") + "'");
+        };
 
+        var children = method.getChildren(PARAM);
+        List<Symbol> params = new ArrayList<>();
 
-        var params = List.of(new Symbol(TypeUtils.intType(), method.getChildren(PARAM).getFirst().get(JmmAttributes.PARAM.NAME)));
+        for(JmmNode child : children) {
+            params.add(new Symbol(getParamOrVarType(child), child.get(JmmAttributes.PARAM.NAME)));
+        }
 
-        System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
+        //var params = List.of(new Symbol(TypeUtils.intType(), method.getChildren(PARAM).getFirst().get(JmmAttributes.PARAM.NAME)));
+
+        //System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
         var locals = method.getChildren(VAR_DECL).stream()
-                .map(varDecl -> new Symbol(TypeUtils.intType(), varDecl.get(JmmAttributes.VAR_DECL.NAME)))
+                .map(varDecl -> new Symbol(getParamOrVarType(varDecl), varDecl.get(JmmAttributes.VAR_DECL.NAME)))
                 .toList();
 
-        var visibility =  Visibility.PUBLIC;
+        var visibility =  getVisibility(method);
         var isStatic = method.getBoolean(JmmAttributes.METHOD_DECL.IS_STATIC, false);
         return new MethodSymbol(methodName, returnType, params, locals, isStatic, visibility);
     }
 
+    // Missing array Param
+    private JmmType getParamOrVarType(JmmNode node) {
+        return switch (node.getChild(0).get("name")) {
+            case "int" -> TypeUtils.intType();
+            case "bool" -> TypeUtils.boolType();
+            default ->
+                    throw new RuntimeException("Can't compute type for variable/param '" + node.get("name") + "'");
+        };
+    }
 
+    private Visibility getVisibility(JmmNode node) {
+        var visibility = node.getOptional("visibility");
+        if(visibility.isEmpty() || visibility.equals("public"))
+            return Visibility.PUBLIC;
+        else if (visibility.equals("private"))
+            return Visibility.PRIVATE;
+        else
+            return Visibility.PROTECTED;
+    }
 }

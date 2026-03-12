@@ -16,6 +16,7 @@ import pt.up.fe.specs.util.exceptions.NotImplementedException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
 
@@ -49,7 +50,7 @@ public class TypeUtils {
     }
 
     public JmmType convertType(JmmNode typeNode) {
-        assert (TYPE.check(typeNode));
+        assert (JmmKind.check(typeNode, TYPE, CLASS_DECL, ARRAY_ALLOC));
 
         System.out.println("[TODO] TypeUtils.convertType(): Implement for classes and arrays");
         var name = typeNode.get("name");
@@ -74,6 +75,15 @@ public class TypeUtils {
         };
     }
 
+    private JmmType getTypeParam(JmmNode param) {
+        var type = param.getChild(0).get("name");
+        return switch (type) {
+            case "int" -> intType();
+            case "bool" -> boolType();
+            default ->
+                    throw new RuntimeException("Can't compute type for param type '" + type + "'");
+        };
+    }
 
     public Signature getMethodDeclSignature(JmmNode methodDecl) {
         // Ensure given node is a MethodDecl
@@ -82,13 +92,26 @@ public class TypeUtils {
         // Get name of the method
         var methodName = methodDecl.get("name");
 
-        System.out.println("[TODO] TypeUtils.getMethodDeclSignature(): Supporting only methods with a single parameter that is an int, needs to be expanded");
-        var params = List.of(intType());
+        // System.out.println("[TODO] TypeUtils.getMethodDeclSignature(): Supporting only methods with a single parameter that is an int, needs to be expanded");
+        var children = methodDecl.getChildren(PARAM);
+        var params = children.stream().map(this::getTypeParam).toList();
 
         // Create method signature with method name and types of parameters
         return new Signature(methodName, params);
     }
 
+
+    public JmmType getMethodType(JmmNode methodDecl) {
+        METHOD_DECL.check(methodDecl);
+        var type = methodDecl.getChild(0).get("name");
+        return switch (type) {
+            case "int" -> intType();
+            case "bool" -> boolType();
+            case "void" -> voidType();
+            default ->
+                    throw new RuntimeException("Can't compute type for method '" + methodDecl.get("name") + "'");
+        };
+    }
 
     private JmmType getBinExprType(JmmNode binaryExpr) {
 
@@ -100,6 +123,31 @@ public class TypeUtils {
             case "&&", "||", "==", "!=", "<", ">", "<=", ">=" -> boolType();
             default ->
                     throw new RuntimeException("Unknown operator '" + operator + "' of expression '" + binaryExpr + "'");
+        };
+    }
+
+    private JmmType getUnaryPreExprType(JmmNode unaryPreExpr) {
+
+        // Get operator
+        String operator = unaryPreExpr.get("op");
+
+        return switch (operator) {
+            case "!" -> boolType();
+            case "+", "-", "++", "--" -> intType();
+            default ->
+                    throw new RuntimeException("Unknown operator '" + operator + "' of expression '" + unaryPreExpr + "'");
+        };
+    }
+
+    private JmmType getUnaryPostExprType(JmmNode unaryPostExpr) {
+
+        // Get operator
+        String operator = unaryPostExpr.get("op");
+
+        return switch (operator) {
+            case "++", "--" -> intType();
+            default ->
+                    throw new RuntimeException("Unknown operator '" + operator + "' of expression '" + unaryPostExpr + "'");
         };
     }
 
