@@ -61,8 +61,10 @@ param
     : typeNode=type name = ID
     ;
 
-type
-    : name=(INT|BOOLEAN|VOID|ID) ('[' ']')*
+type    //Based on the Slides of the AST
+    : name=(INT|BOOLEAN|VOID) #BaseType
+    | type '[' ']' #ArrayType
+    | name=ID #ClassType
     ;
 
 methodDecl locals[boolean isStatic=false]
@@ -84,7 +86,7 @@ stmt
     | ID ('[' expr ']')+ '=' expr ';' #AssignArrayElementStmt
     ;
 
-// Extend to Multidimensional Arrays?
+// Need to improve extension
 expr
     : '(' expr ')' #Parenthesis
     | expr ('[' expr ']')+ #ArrayAcess

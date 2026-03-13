@@ -50,13 +50,12 @@ public class TypeUtils {
     }
 
     public JmmType convertType(JmmNode typeNode) {
-        assert (JmmKind.check(typeNode, TYPE, CLASS_DECL, ARRAY_ALLOC));
+        assert (JmmKind.check(typeNode, BASE_TYPE, CLASS_TYPE, ARRAY_TYPE));
 
         System.out.println("[TODO] TypeUtils.convertType(): Implement for classes and arrays");
         var name = typeNode.get("name");
         return JmmPrimitiveType.fromString(name).orElseThrow();
     }
-
 
     /**
      * Gets the {@link JmmType} of an arbitrary expression.
@@ -79,7 +78,7 @@ public class TypeUtils {
         var type = param.getChild(0).get("name");
         return switch (type) {
             case "int" -> intType();
-            case "bool" -> boolType();
+            case "boolean" -> boolType();
             default ->
                     throw new RuntimeException("Can't compute type for param type '" + type + "'");
         };
@@ -106,7 +105,7 @@ public class TypeUtils {
         var type = methodDecl.getChild(0).get("name");
         return switch (type) {
             case "int" -> intType();
-            case "bool" -> boolType();
+            case "boolean" -> boolType();
             case "void" -> voidType();
             default ->
                     throw new RuntimeException("Can't compute type for method '" + methodDecl.get("name") + "'");

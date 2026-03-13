@@ -10,11 +10,13 @@ import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmClassType;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp.jmm.report.Report;
+import pt.up.fe.comp.jmm.report.ReportType;
 import pt.up.fe.comp.jmm.report.Stage;
 import pt.up.fe.comp.jmm.utils.Attributes;
 import pt.up.fe.comp2026.ast.NodeUtils;
 import pt.up.fe.comp2026.ast.TypeUtils;
 import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
+import pt.up.fe.comp2026.jmm.ast.JmmKind;
 import pt.up.fe.specs.util.SpecsCheck;
 
 import java.lang.reflect.Type;
@@ -57,11 +59,11 @@ public class JmmSymbolTableBuilder {
     }
 
     private SymbolTableBuilderResult buildInternal() {
-
-
         var packageDecl = root.getChildren(PACKAGE_DECL).getFirst();
         var packagePathList = packageDecl.getObjectAsList("path", String.class);
         var packagePath = String.join(".", packagePathList);
+
+        imports.addAll(getImports());
 
         var classDecl = root.getObject("classNode", JmmNode.class);
         SpecsCheck.checkArgument(CLASS_DECL.check(classDecl), () -> "Expected a class declaration: " + classDecl);
@@ -75,12 +77,62 @@ public class JmmSymbolTableBuilder {
         }
         declaredClasses.put(className, fullyQualifiedName);
 
+        // TODO: Implement support for the "extends"
+        var extension = classDecl.getOptional("extension");
+
+        String superQualifiedNameName;
+        if(extension.isPresent()) {
+            var name = extension.get();
+            superQualifiedNameName = imports.stream()
+                    .filter(imp -> imp.endsWith("." + name) || imp.equals(name))
+                    .findFirst()
+                    .orElse(null);  // Same package, I think
+
+            // Not sure if this is adequate
+            if(superQualifiedNameName == null && importer.isImplicitImport(name))
+                superQualifiedNameName = name;
+
+            else if(superQualifiedNameName == null && importer.inClassPath(name))
+                superQualifiedNameName = packagePath + "." + name;
+
+            else if(superQualifiedNameName == null)
+                throw new RuntimeException("Unknow parent class: " + "'" + name + "'");
+        }
+        else
+            superQualifiedNameName = null;
 
         var methods = buildMethods(classDecl);
+        var fields = buildVars(classDecl);
 
-        var symbolTable = new JmmSymbolTable(imports, fullyQualifiedName, null, Collections.emptyList(), methods, importer);
+        var symbolTable = new JmmSymbolTable(imports, fullyQualifiedName, superQualifiedNameName, fields, methods, importer);
 
         return new SymbolTableBuilderResult(symbolTable, reports);
+    }
+
+    private List<String> getImports() {
+        List<String> imps = this.root.getChildren(IMPORT_DECL).stream().map(this::fullyQualifiedNameImport).toList();
+        return (new LinkedHashSet<>(imps)).stream().toList();
+    }
+
+    private String fullyQualifiedNameImport(JmmNode imp) {
+        return String.join(".", imp.getObjectAsList("path", String.class));
+    }
+
+    private List<Symbol> buildVars(JmmNode node) {
+        var vars = node.getChildren(VAR_DECL);
+        var result = new ArrayList<Symbol>();
+        for(var v : vars) {
+            var symbol = buildVar(v);
+            if(!result.contains(symbol))
+                result.add(symbol);
+            else
+                reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, node.getLine(), "Duplicate variable definition: " + symbol.name()));
+        }
+        return result;
+    }
+
+    private Symbol buildVar(JmmNode varDecl) {
+        return new Symbol(getType(varDecl.getChild(0)), varDecl.get(JmmAttributes.VAR_DECL.NAME));
     }
 
     private List<MethodSymbol> buildMethods(JmmNode classDecl) {
@@ -88,59 +140,124 @@ public class JmmSymbolTableBuilder {
         return classDecl.getChildren(METHOD_DECL).stream()
                 .map(this::buildMethod)
                 .toList();
-
     }
 
     private MethodSymbol buildMethod(JmmNode method) {
         var methodName = method.get("name");
 
         //System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming return type of method is always int, and always has a single int parameter, needs to be expanded");
-        var type = method.getChild(0).get("name");
-        JmmPrimitiveType returnType;
-        switch (type) {
-            case "int" -> returnType = TypeUtils.intType();
-            case "bool" -> returnType = TypeUtils.boolType();
-            case "void" -> returnType = TypeUtils.voidType();
-            default ->
-                    throw new RuntimeException("Can't compute type for method '" + method.get("name") + "'");
-        };
-
+        JmmType returnType = getType(method.getChild(0));   //ReturnType in case you don't remember
         var children = method.getChildren(PARAM);
         List<Symbol> params = new ArrayList<>();
 
         for(JmmNode child : children) {
-            params.add(new Symbol(getParamOrVarType(child), child.get(JmmAttributes.PARAM.NAME)));
+            var symbol = new Symbol(getType(child.getChild(0)), child.get(JmmAttributes.PARAM.NAME));
+            if(!params.contains(symbol))
+                params.add(symbol);
+            else
+                reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, method.getLine(), "Duplicate parameter name: " + symbol.name()));
         }
 
         //var params = List.of(new Symbol(TypeUtils.intType(), method.getChildren(PARAM).getFirst().get(JmmAttributes.PARAM.NAME)));
 
         //System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
-        var locals = method.getChildren(VAR_DECL).stream()
-                .map(varDecl -> new Symbol(getParamOrVarType(varDecl), varDecl.get(JmmAttributes.VAR_DECL.NAME)))
-                .toList();
+        var locals = buildVars(method);
 
-        var visibility =  getVisibility(method);
+        for(var p : params) {
+            if(locals.contains(p))
+                reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, method.getLine(), "Parameter and Local Variable sharing the same name: " + p.name()));
+        }
+
+        var visibility =  Visibility.fromString(method.getOptional("visibility").orElse(""));
         var isStatic = method.getBoolean(JmmAttributes.METHOD_DECL.IS_STATIC, false);
         return new MethodSymbol(methodName, returnType, params, locals, isStatic, visibility);
     }
 
+    /*
     // Missing array Param
     private JmmType getParamOrVarType(JmmNode node) {
-        return switch (node.getChild(0).get("name")) {
-            case "int" -> TypeUtils.intType();
-            case "bool" -> TypeUtils.boolType();
-            default ->
-                    throw new RuntimeException("Can't compute type for variable/param '" + node.get("name") + "'");
-        };
-    }
+        var typeNode = node.getChild(0);
+        if(JmmKind.check(typeNode, BASE_TYPE))
+            return switch (typeNode.get("name")) {
+                case "int" -> TypeUtils.intType();
+                case "boolean" -> TypeUtils.boolType();
+                default ->
+                        throw new RuntimeException("Can't compute type for variable/param '" + node.get("name") + "'");
+            };
+        else if(JmmKind.check(typeNode, ARRAY_TYPE)) {
+            int dim = 0;
+            while (!JmmKind.check(typeNode, BASE_TYPE) && !JmmKind.check(typeNode, CLASS_TYPE) ) {
+                typeNode = typeNode.getChild(0);
+                dim++;
+            }
 
-    private Visibility getVisibility(JmmNode node) {
-        var visibility = node.getOptional("visibility");
-        if(visibility.isEmpty() || visibility.equals("public"))
-            return Visibility.PUBLIC;
-        else if (visibility.equals("private"))
-            return Visibility.PRIVATE;
-        else
-            return Visibility.PROTECTED;
+            return new JmmArrayType(getParamOrVarType(typeNode), dim);
+        }
+        else {
+            String fqn;
+            boolean imported = false;
+            String name = typeNode.get("name");
+            if(Objects.equals(name, className))
+                fqn = declaredClasses.get(name);
+            else if(declaredClasses.containsKey(name)) {
+                imported = true;
+                fqn = declaredClasses.get(name);
+            }
+            else if(importer.isImplicitImport(name)) {
+                imported = true;
+                fqn = name;
+            }
+            else
+                throw new RuntimeException("Can't compute type for variable/param of type'" + name + "'");
+            return new JmmClassType(fqn, imported, false);  //staticRef not determined
+        }
+    }
+     */
+
+    private JmmType getType(JmmNode node) {
+        if(JmmKind.check(node, BASE_TYPE))
+            return switch (node.get("name")) {
+                case "int" -> TypeUtils.intType();
+                case "boolean" -> TypeUtils.boolType();
+                case "void" -> {
+                    if (node.getParent().isInstance(PARAM) || node.getParent().isInstance(VAR_DECL)) // To allow the merge of VAR_DECL, PARAM and METHOD_DECL type extraction
+                        throw new RuntimeException("Param or Variable declaration can't be of type void.");
+                    yield TypeUtils.voidType();
+                }
+                default ->
+                        throw new RuntimeException("Can't compute type for variable/param '" + node.get("name") + "'");
+            };
+        ;
+        // If it isn't a base type
+        if(JmmKind.check(node, ARRAY_TYPE)) {
+            int dim = 0;
+            while (!JmmKind.check(node, BASE_TYPE) && !JmmKind.check(node, CLASS_TYPE) ) {
+                node = node.getChild(0);
+                dim++;
+            }
+
+            return new JmmArrayType(getType(node), dim);
+        }
+        else {
+            String fqn;
+            boolean imported = false;
+            String name = node.get("name");
+            if(Objects.equals(name, className))
+                fqn = declaredClasses.get(name);
+            else if(imports.stream()    //I think this could be simplified if the imports are added to declaredClasses
+                    .anyMatch(imp -> imp.endsWith("." + name) || imp.equals(name))) {
+                imported = true;
+                fqn = imports.stream()
+                        .filter(imp -> imp.endsWith("." + name) || imp.equals(name))
+                        .findFirst().get();
+            }
+            else if(importer.isImplicitImport(name)) {
+                imported = true;
+                fqn = name;
+            }
+            else
+                throw new RuntimeException("Can't compute type for variable/param of type '" + name + "'");
+            return new JmmClassType(fqn, imported, false);  //staticRef not determined
+        }
     }
 }
