@@ -83,20 +83,19 @@ stmt
     | FOR '(' (ID '=' expr)? ';' (expr)? ';' ((ID '=' expr) | (ID ('++'|'--')) | (('++'|'--') ID))? ')' stmt #ForStmt // stmt in the for has to be Assign
     | DO stmt WHILE '(' expr ')' ';' #DoWhileStmt // Does stmt have to be a block?
     | expr ';'  #ExprStmt
-    | ID ('[' expr ']')+ '=' expr ';' #AssignArrayElementStmt
+    | ID (arrayIndex)+ '=' expr ';' #AssignArrayElementStmt
     ;
 
 // Need to improve extension
 expr
     : '(' expr ')' #Parenthesis
-    | expr ('[' expr ']')+ #ArrayAcess
+    | expr (arrayIndex)+ #ArrayAcess
     | expr '.' LENGTH #LengthOperator
     | expr '.' func=ID '(' (expr (',' expr)* )? ')' #FunctionCall
-    | NEW INT ('[' expr ']')+ ('{' (expr (',' expr)*)? '}')? #ArrayAlloc
-    | NEW INT ('[' ']')+ ('{' (expr (',' expr)*)? '}') #ArrayAlloc
+    | NEW name=(INT|BOOLEAN|VOID) (arrayIndex)+ #ArrayAlloc
+    | NEW name=(INT|BOOLEAN|VOID) (arrayDim)+ ('{' (expr (',' expr)*)? '}') #ArrayAlloc
     | NEW classType=ID '(' (expr (',' expr)*)? ')' #Constructor
-    | op=('++'|'--') expr #UnaryPostExpr
-    | op=('!'|'+'|'-'|'++'|'--') expr #UnaryPreExpr
+    | op=('!'|'+'|'-'|'++'|'--') expr #UnaryExpr
     | expr op=('*'|'/'|'%') expr #BinaryExpr
     | expr op=('+'|'-') expr #BinaryExpr
     | expr op=('<'|'>'|'<='|'>=') expr #BinaryExpr
@@ -108,4 +107,11 @@ expr
     | name=ID #VarRefExpr
     | THIS '.' expr #This
     | func=ID '(' (expr (',' expr)* )? ')' #ImplicitThisFunctionCall
+    ;
+
+arrayIndex
+    : '[' expr ']'
+    ;
+arrayDim
+    : '[' ']'
     ;

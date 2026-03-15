@@ -125,7 +125,7 @@ public class TypeUtils {
         };
     }
 
-    private JmmType getUnaryPreExprType(JmmNode unaryPreExpr) {
+    private JmmType getUnaryExprType(JmmNode unaryPreExpr) {
 
         // Get operator
         String operator = unaryPreExpr.get("op");
@@ -135,18 +135,6 @@ public class TypeUtils {
             case "+", "-", "++", "--" -> intType();
             default ->
                     throw new RuntimeException("Unknown operator '" + operator + "' of expression '" + unaryPreExpr + "'");
-        };
-    }
-
-    private JmmType getUnaryPostExprType(JmmNode unaryPostExpr) {
-
-        // Get operator
-        String operator = unaryPostExpr.get("op");
-
-        return switch (operator) {
-            case "++", "--" -> intType();
-            default ->
-                    throw new RuntimeException("Unknown operator '" + operator + "' of expression '" + unaryPostExpr + "'");
         };
     }
 
