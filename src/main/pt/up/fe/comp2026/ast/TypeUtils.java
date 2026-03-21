@@ -139,8 +139,29 @@ public class TypeUtils {
     }
 
     private JmmType getVarExprType(JmmNode varRefExpr) {
-        System.out.println("[TODO] TypeUtils.getVarExprType(): Implement type inference for VarExpr. You will need to determine in which method the VarRef is and use the symbol table");
-        return intType();
+        var varName = varRefExpr.get("name");
+        System.out.println("Looking up variable: " + varName);
+        var maybeMethod = varRefExpr.getAncestor(METHOD_DECL);
+        System.out.println("Method found: " + maybeMethod.isPresent());
+        if (maybeMethod.isEmpty()) {
+            return table.getField(varName)
+                    .map(s -> s.type())
+                    .orElseThrow(() -> new RuntimeException("Unknown variable: " + varName));
+        }
+
+        var sig = getMethodDeclSignature(maybeMethod.get());
+        var method = table.getMethod(sig).orElseThrow();
+
+        var asParam = method.getParameter(varName);
+        if (asParam.isPresent()) return asParam.get().type();
+
+        var asLocal = method.getLocalVariable(varName);
+        if (asLocal.isPresent()) return asLocal.get().type();
+
+        var asField = table.getField(varName);
+        if (asField.isPresent()) return asField.get().type();
+
+        throw new RuntimeException("Variable not found: " + varName);
     }
 
 }
