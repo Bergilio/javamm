@@ -28,9 +28,7 @@ public class JmmSymbolTable extends AJmmSymbolTable {
                           String superQualifiedNameName, List<Symbol> fields,
                           List<MethodSymbol> methods,
                           Importer importer) {
-//                          Map<String, Type> returnTypes,
-//                          Map<String, List<Symbol>> params,
-//                          Map<String, List<Symbol>> locals) {
+
         super(importer);
         this.imports = imports;
         this.classQualifiedName = classQualifiedName;
