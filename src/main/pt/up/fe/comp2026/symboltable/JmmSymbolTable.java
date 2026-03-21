@@ -35,9 +35,6 @@ public class JmmSymbolTable extends AJmmSymbolTable {
         this.superQualifiedName = superQualifiedNameName;
         this.fields = fields.stream().collect(Collectors.toMap(Symbol::name, s -> s));
         this.methods = methods.stream().collect(Collectors.toMap(MethodSymbol::signature, m -> m));
-//        this.returnTypes = returnTypes;
-//        this.params = params;
-//        this.locals = locals;
         this.importNames = calcImportNames(imports);
         this.attrs = new HashMap<>();
     }
