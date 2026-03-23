@@ -115,8 +115,17 @@ public class JmmSymbolTableBuilder {
     }
 
     private List<String> getImports() {
-        List<String> imps = this.root.getChildren(IMPORT_DECL).stream().map(this::fullyQualifiedNameImport).toList();
-        return (new LinkedHashSet<>(imps)).stream().toList();
+        Map<String, String> name_fqn = new HashMap<>();
+        for(var imp : this.root.getChildren(IMPORT_DECL)) {
+            var base_name = imp.getObjectAsList("path", String.class).getLast();
+            var fqn = fullyQualifiedNameImport(imp);
+            if(name_fqn.containsKey(base_name) && !name_fqn.get(base_name).equals(fqn))
+                newError(imp, "Imports with the same base name, but not fqn");
+            else if(!name_fqn.containsKey(base_name))
+                name_fqn.put(base_name, fqn);
+        }
+
+        return name_fqn.values().stream().toList();
     }
 
     private String fullyQualifiedNameImport(JmmNode imp) {
