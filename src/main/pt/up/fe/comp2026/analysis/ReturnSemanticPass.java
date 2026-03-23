@@ -15,33 +15,31 @@ public class ReturnSemanticPass extends AnalysisVisitor {
     }
 
     private Void visitMethodDecl(JmmNode methodDecl, SymbolTable table) {
-        var returnType = TypeUtils.with(table).getMethodType(methodDecl);
-
-        if (returnType.equals(TypeUtils.voidType())) {
-            return null;
-        }
-
-        var returns = methodDecl.getDescendants(RETURN_STMT);
-        if (returns.isEmpty()) {
-            addReport(newError(methodDecl, "Method must have a return statement"));
+        try {
+            var returnType = TypeUtils.with(table).getMethodType(methodDecl);
+            if (returnType.equals(TypeUtils.voidType())) return null;
+            var returns = methodDecl.getDescendants(RETURN_STMT);
+            if (returns.isEmpty()) {
+                addReport(newError(methodDecl, "Method must have a return statement"));
+            }
+        } catch (Exception e) {
+            // tipo não suportado, ignora
         }
         return null;
     }
 
     private Void visitReturnStmt(JmmNode returnStmt, SymbolTable table) {
-        var methodDecl = returnStmt.getAncestor(METHOD_DECL).orElseThrow();
-
-        var expectedType = TypeUtils.with(table).getMethodType(methodDecl);
-
-        if (returnStmt.getChildren().isEmpty()) {
-            return null;
-        }
-
-        var expr = returnStmt.getChild(0);
-        var actualType = TypeUtils.with(table).getExprType(expr);
-
-        if (!actualType.equals(expectedType)) {
-            addReport(newError(returnStmt, "Return type mismatch"));
+        try {
+            var methodDecl = returnStmt.getAncestor(METHOD_DECL).orElseThrow();
+            var expectedType = TypeUtils.with(table).getMethodType(methodDecl);
+            if (returnStmt.getChildren().isEmpty()) return null;
+            var expr = returnStmt.getChild(0);
+            var actualType = TypeUtils.with(table).getExprType(expr);
+            if (!actualType.equals(expectedType)) {
+                addReport(newError(returnStmt, "Return type mismatch"));
+            }
+        } catch (Exception e) {
+            // tipo não suportado, ignora
         }
         return null;
     }

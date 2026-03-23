@@ -79,6 +79,9 @@ public class JmmSymbolTableBuilder {
 
         // TODO: Implement support for the "extends"
         var extension = classDecl.getOptional("extension");
+        if(extension.isPresent() && extension.get().equals(className)) {
+            reports.add(newError(classDecl, "Class '" + className + "' cannot extend itself"));
+        }
 
         String superQualifiedNameName;
         if(extension.isPresent()) {
@@ -95,8 +98,10 @@ public class JmmSymbolTableBuilder {
             else if(superQualifiedNameName == null && importer.inClassPath(name))
                 superQualifiedNameName = packagePath + "." + name;
 
-            else if(superQualifiedNameName == null)
-                throw new RuntimeException("Unknow parent class: " + "'" + name + "'");
+            else if(superQualifiedNameName == null) {
+                reports.add(newError(classDecl, "Class '" + name + "' is not imported"));
+                superQualifiedNameName = name;
+            }
         }
         else
             superQualifiedNameName = null;

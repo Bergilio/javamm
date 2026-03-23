@@ -67,6 +67,7 @@ public class TypeUtils {
         return switch (expr.getKind()) {
             case INTEGER_LITERAL -> intType();
             case BINARY_EXPR -> getBinExprType(expr);
+            case UNARY_EXPR -> getUnaryExprType(expr);
             case VAR_REF_EXPR -> getVarExprType(expr);
             case BOOLEAN_LITERAL -> boolType();
             default ->
