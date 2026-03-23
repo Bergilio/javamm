@@ -166,11 +166,14 @@ public class JmmSymbolTableBuilder {
         JmmType returnType = getType(method.getChild(0));   //ReturnType in case you don't remember
         var children = method.getChildren(PARAM);
         List<Symbol> params = new ArrayList<>();
+        var paramsNames = new ArrayList<String>();
 
         for(JmmNode child : children) {
             var symbol = new Symbol(getType(child.getChild(0)), child.get(JmmAttributes.PARAM.NAME));
-            if(!params.contains(symbol))
+            if(!paramsNames.contains(symbol.name())) {
                 params.add(symbol);
+                paramsNames.add(symbol.name());
+            }
             else
                 reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, method.getLine(), "Duplicate parameter name: " + symbol.name()));
         }
@@ -180,9 +183,9 @@ public class JmmSymbolTableBuilder {
         //System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
         var locals = buildVars(method);
 
-        for(var p : params) {
-            if(locals.contains(p))
-                reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, method.getLine(), "Parameter and Local Variable sharing the same name: " + p.name()));
+        for(var l : locals) {
+            if(paramsNames.contains(l.name()))
+                reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, method.getLine(), "Parameter and Local Variable sharing the same name: " + l.name()));
         }
 
         var visibility =  Visibility.fromString(method.getOptional("visibility").orElse(""));
