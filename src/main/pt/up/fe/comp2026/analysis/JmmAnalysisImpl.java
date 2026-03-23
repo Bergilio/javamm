@@ -29,6 +29,7 @@ public class JmmAnalysisImpl implements JmmAnalysis {
         return List.of(
                 new IfElseSemanticPass(),
                 new WhileSemanticPass(),
+                new LocalCallsSemanticPass(),
                 new ReturnSemanticPass()
         );
     }
@@ -72,6 +73,7 @@ public class JmmAnalysisImpl implements JmmAnalysis {
 //                    System.out.println("Found errors: " + reports);
                     return new JmmSemanticsResult(semanticsResult, reports);
                 }
+
 
             } catch (Exception e) {
                 reports.add(Report.newError(Stage.SEMANTIC,
