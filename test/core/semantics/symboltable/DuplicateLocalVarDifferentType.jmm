@@ -1,0 +1,9 @@
+package test;
+
+class DuplicateLocalVarDifferentType {
+    public int foo() {
+        int a;
+        boolean a;
+        return a;
+    }
+}
