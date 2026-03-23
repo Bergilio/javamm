@@ -135,10 +135,13 @@ public class JmmSymbolTableBuilder {
     private List<Symbol> buildVars(JmmNode node) {
         var vars = node.getChildren(VAR_DECL);
         var result = new ArrayList<Symbol>();
+        var names = new ArrayList<String>();
         for(var v : vars) {
             var symbol = buildVar(v);
-            if(!result.contains(symbol))
+            if(!names.contains(symbol.name())) {
                 result.add(symbol);
+                names.add(symbol.name());
+            }
             else
                 reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, node.getLine(), "Duplicate variable definition: " + symbol.name()));
         }
