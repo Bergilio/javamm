@@ -9,11 +9,13 @@ import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmClassType;
 import pt.up.fe.comp.jmm.ast.JmmNode;
+import pt.up.fe.comp2026.JavammParser;
 import pt.up.fe.comp2026.jmm.ast.JmmKind;
 import pt.up.fe.comp2026.symboltable.JmmSymbolTable;
 import pt.up.fe.specs.util.SpecsCheck;
 import pt.up.fe.specs.util.exceptions.NotImplementedException;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -72,7 +74,9 @@ public class TypeUtils {
             case UNARY_EXPR -> getUnaryExprType(expr);
             case VAR_REF_EXPR -> getVarExprType(expr);
             case BOOLEAN_LITERAL -> boolType();
-            case PARENTHESIS -> getExprType(expr.getChild(0));
+            case PARENTHESIS, THIS -> getExprType(expr.getChild(0));
+            case IMPLICIT_THIS_FUNCTION_CALL -> getMethodCallType(expr, new JmmClassType(table.getFullyQualifiedName(), false, false));
+            //case FUNCTION_CALL -> This implementation is missing
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -134,6 +138,14 @@ public class TypeUtils {
         return new Signature(methodName, params);
     }
 
+    public JmmType getMethodCallType(JmmNode methodCall, JmmClassType classType) {
+        var methodName = methodCall.get("func");
+        var params = methodCall.getChildren(EXPR).stream().map(this::getExprType).toList();
+        var sig = new Signature(methodName, params);
+        var className = classType.fullyQualifiedName();
+        var st = Importer.fromThisClassPath().getSymbolTableOf(className).orElseThrow();
+        return st.getMethod(sig).orElseThrow().returnType();
+    }
 
     public JmmType getMethodType(JmmNode methodDecl) {
         METHOD_DECL.check(methodDecl);

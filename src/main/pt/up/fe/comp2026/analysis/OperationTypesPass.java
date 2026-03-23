@@ -9,13 +9,13 @@ import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
 import pt.up.fe.comp2026.jmm.ast.JmmKind;
 
 public class OperationTypesPass extends AnalysisVisitor {
-    private MethodSymbol currentMethod;
     @Override
     public void buildVisitor() {
         addVisit(JmmKind.BINARY_EXPR, this::visitBinaryExpr);
         addVisit(JmmKind.UNARY_EXPR, this::visitUnaryExpr);
     }
 
+    //Extend to methods and this
     private Void visitBinaryExpr(JmmNode expr, SymbolTable table) {
         var left = TypeUtils.with(table).getExprType(expr.getChild(0));
         var right = TypeUtils.with(table).getExprType(expr.getChild(1));
