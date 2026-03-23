@@ -120,7 +120,7 @@ public class JmmSymbolTableBuilder {
             var base_name = imp.getObjectAsList("path", String.class).getLast();
             var fqn = fullyQualifiedNameImport(imp);
             if(name_fqn.containsKey(base_name) && !name_fqn.get(base_name).equals(fqn))
-                newError(imp, "Imports with the same base name, but not fqn");
+                reports.add(newError(imp, "Imports with the same base name, but not fqn"));
             else if(!name_fqn.containsKey(base_name))
                 name_fqn.put(base_name, fqn);
         }
@@ -192,47 +192,6 @@ public class JmmSymbolTableBuilder {
         var isStatic = method.getBoolean(JmmAttributes.METHOD_DECL.IS_STATIC, false);
         return new MethodSymbol(methodName, returnType, params, locals, isStatic, visibility);
     }
-
-    /*
-    // Missing array Param
-    private JmmType getParamOrVarType(JmmNode node) {
-        var typeNode = node.getChild(0);
-        if(JmmKind.check(typeNode, BASE_TYPE))
-            return switch (typeNode.get("name")) {
-                case "int" -> TypeUtils.intType();
-                case "boolean" -> TypeUtils.boolType();
-                default ->
-                        throw new RuntimeException("Can't compute type for variable/param '" + node.get("name") + "'");
-            };
-        else if(JmmKind.check(typeNode, ARRAY_TYPE)) {
-            int dim = 0;
-            while (!JmmKind.check(typeNode, BASE_TYPE) && !JmmKind.check(typeNode, CLASS_TYPE) ) {
-                typeNode = typeNode.getChild(0);
-                dim++;
-            }
-
-            return new JmmArrayType(getParamOrVarType(typeNode), dim);
-        }
-        else {
-            String fqn;
-            boolean imported = false;
-            String name = typeNode.get("name");
-            if(Objects.equals(name, className))
-                fqn = declaredClasses.get(name);
-            else if(declaredClasses.containsKey(name)) {
-                imported = true;
-                fqn = declaredClasses.get(name);
-            }
-            else if(importer.isImplicitImport(name)) {
-                imported = true;
-                fqn = name;
-            }
-            else
-                throw new RuntimeException("Can't compute type for variable/param of type'" + name + "'");
-            return new JmmClassType(fqn, imported, false);  //staticRef not determined
-        }
-    }
-     */
 
     private JmmType getType(JmmNode node) {
         if(JmmKind.check(node, BASE_TYPE))

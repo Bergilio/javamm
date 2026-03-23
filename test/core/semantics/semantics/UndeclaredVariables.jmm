@@ -1,0 +1,11 @@
+package test;
+
+class UndeclaredVariables {
+    int a;
+
+    public int foo() {
+        int b;
+        c = b + a;
+        return c;
+    }
+}

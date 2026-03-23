@@ -3,6 +3,7 @@ package pt.up.fe.comp2026.ast;
 import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.Signature;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
+import pt.up.fe.comp.jmm.analysis.table.reflection.Importer;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmPrimitiveType;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
@@ -15,6 +16,7 @@ import pt.up.fe.specs.util.exceptions.NotImplementedException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -76,13 +78,45 @@ public class TypeUtils {
     }
 
     private JmmType getTypeParam(JmmNode param) {
-        var type = param.getChild(0).get("name");
-        return switch (type) {
-            case "int" -> intType();
-            case "boolean" -> boolType();
-            default ->
-                    throw new RuntimeException("Can't compute type for param type '" + type + "'");
-        };
+        var type = param.getChild(0);
+        if(JmmKind.check(type, BASE_TYPE))
+            return switch (type.get("name")) {
+                case "int" -> TypeUtils.intType();
+                case "boolean" -> TypeUtils.boolType();
+                default ->
+                        throw new RuntimeException("Can't compute type for param '" + param.get("name") + "'");
+            };
+        // If it isn't a base type
+        if(JmmKind.check(type, ARRAY_TYPE)) {
+            int dim = 0;
+            while (!JmmKind.check(type, BASE_TYPE) && !JmmKind.check(type, CLASS_TYPE) ) {
+                type = type.getChild(0);
+                dim++;
+            }
+
+            return new JmmArrayType(getTypeParam(param), dim);
+        }
+        else {
+            String fqn;
+            boolean imported = false;
+            String name = type.get("name");
+            if(Objects.equals(name, table.getClassName()))
+                fqn = table.getFullyQualifiedName();
+            else if(table.getImports().stream()    //I think this could be simplified if the imports are added to declaredClasses
+                    .anyMatch(imp -> imp.endsWith("." + name) || imp.equals(name))) {
+                imported = true;
+                fqn = table.getImports().stream()
+                        .filter(imp -> imp.endsWith("." + name) || imp.equals(name))
+                        .findFirst().get();
+            }
+            else if(Importer.fromThisClassPath().isImplicitImport(name)) {
+                imported = true;
+                fqn = name;
+            }
+            else
+                throw new RuntimeException("Can't compute type for param of type '" + name + "'");
+            return new JmmClassType(fqn, imported, false);  //staticRef not determined
+        }
     }
 
     public Signature getMethodDeclSignature(JmmNode methodDecl) {

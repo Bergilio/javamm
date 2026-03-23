@@ -1,0 +1,14 @@
+package test;
+
+class DeclaredVariable {
+    int a;
+    int d;
+
+    public int foo() {
+        int b;
+        int c;
+        c = b + a;
+        d = c;
+        return d;
+    }
+}
