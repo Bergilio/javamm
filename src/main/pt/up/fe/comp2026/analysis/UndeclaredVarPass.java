@@ -37,8 +37,8 @@ public class UndeclaredVarPass extends AnalysisVisitor {
                 break;
             classTable = Importer.fromThisClassPath().getSymbolTableOf(superClass).orElseThrow();
         }
+        // Expand to search in imported classes
         addReport(newError(varRefExpr, "Variable not declared"));
         return null;
     }
-
 }

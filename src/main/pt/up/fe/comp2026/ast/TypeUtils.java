@@ -72,6 +72,7 @@ public class TypeUtils {
             case UNARY_EXPR -> getUnaryExprType(expr);
             case VAR_REF_EXPR -> getVarExprType(expr);
             case BOOLEAN_LITERAL -> boolType();
+            case PARENTHESIS -> getExprType(expr.getChild(0));
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -93,7 +94,6 @@ public class TypeUtils {
                 type = type.getChild(0);
                 dim++;
             }
-
             return new JmmArrayType(getTypeParam(param), dim);
         }
         else {
@@ -175,13 +175,11 @@ public class TypeUtils {
 
     private JmmType getVarExprType(JmmNode varRefExpr) {
         var varName = varRefExpr.get("name");
-        System.out.println("Looking up variable: " + varName);
+        //System.out.println("Looking up variable: " + varName);
         var maybeMethod = varRefExpr.getAncestor(METHOD_DECL);
-        System.out.println("Method found: " + maybeMethod.isPresent());
+        //System.out.println("Method found: " + maybeMethod.isPresent());
         if (maybeMethod.isEmpty()) {
-            return table.getField(varName)
-                    .map(s -> s.type())
-                    .orElseThrow(() -> new RuntimeException("Unknown variable: " + varName));
+            return getFieldType(varRefExpr);
         }
 
         var sig = getMethodDeclSignature(maybeMethod.get());
@@ -193,10 +191,26 @@ public class TypeUtils {
         var asLocal = method.getLocalVariable(varName);
         if (asLocal.isPresent()) return asLocal.get().type();
 
-        var asField = table.getField(varName);
+        return getFieldType(varRefExpr);
+        // Expand to search in imported classes
+    }
+
+    private JmmType getFieldType(JmmNode field) {
+        var fieldName = field.get("name");
+        var asField = table.getField(fieldName);
         if (asField.isPresent()) return asField.get().type();
 
-        throw new RuntimeException("Variable not found: " + varName);
+        SymbolTable classTable = table;
+        while(true) {
+            if(classTable.getField(fieldName).isPresent())
+                return classTable.getField(fieldName).get().type();
+            var superClass = classTable.getSuperFullyQualifiedName();
+            if(superClass == null)
+                break;
+            classTable = Importer.fromThisClassPath().getSymbolTableOf(superClass).orElseThrow();
+        }
+
+        throw new RuntimeException("Can't compute type for field '" + fieldName + "'");
     }
 
 }

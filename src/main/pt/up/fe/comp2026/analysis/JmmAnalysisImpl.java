@@ -31,7 +31,8 @@ public class JmmAnalysisImpl implements JmmAnalysis {
                 new WhileSemanticPass(),
                 new LocalCallsSemanticPass(),
                 new ReturnSemanticPass(),
-                new UndeclaredVarPass()
+                new UndeclaredVarPass(),
+                new OperationTypesPass()
         );
     }
 
