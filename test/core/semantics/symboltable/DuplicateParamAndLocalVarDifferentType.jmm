@@ -1,0 +1,8 @@
+package test;
+
+class DuplicateParamDifferentType {
+    public void foo(int a) {
+        boolean a;
+        return;
+    }
+}
