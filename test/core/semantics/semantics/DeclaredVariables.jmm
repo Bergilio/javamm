@@ -2,9 +2,8 @@ package test;
 
 class DeclaredVariable {
     int a;
-    int d;
 
-    public int foo() {
+    public int foo(int d) {
         int b;
         int c;
         c = b + a;
