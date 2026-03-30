@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
 
-
+//TODO: A LOT OF THIS THROWS HAVE TO BE CONVERTED TO REPORTS, IF POSSIBLE
 /**
  * Utility methods regarding types.
  */
@@ -57,8 +57,19 @@ public class TypeUtils {
         assert (JmmKind.check(typeNode, BASE_TYPE, CLASS_TYPE, ARRAY_TYPE));
 
         System.out.println("[TODO] TypeUtils.convertType(): Implement for classes and arrays");
-        var name = typeNode.get("name");
-        return JmmPrimitiveType.fromString(name).orElseThrow();
+        if(JmmKind.check(typeNode, BASE_TYPE)) {
+            var name = typeNode.get("name");
+            return JmmPrimitiveType.fromString(name).orElseThrow();
+        }
+        else if(JmmKind.check(typeNode, ARRAY_TYPE)) {
+            int dim = 0;
+            while (!JmmKind.check(typeNode, BASE_TYPE) && !JmmKind.check(typeNode, CLASS_TYPE) ) {
+                typeNode = typeNode.getChild(0);
+                dim++;
+            }
+            return new JmmArrayType(convertType(typeNode), dim);
+        }
+        return classType(typeNode);
     }
 
     /**
@@ -67,16 +78,21 @@ public class TypeUtils {
      * @param expr
      * @return
      */
+
     public JmmType getExprType(JmmNode expr) {
         return switch (expr.getKind()) {
-            case INTEGER_LITERAL -> intType();
+            //Missing static references to classes
+            case INTEGER_LITERAL, LENGTH_OPERATOR -> intType();
             case BINARY_EXPR -> getBinExprType(expr);
             case UNARY_EXPR -> getUnaryExprType(expr);
             case VAR_REF_EXPR -> getVarExprType(expr);
             case BOOLEAN_LITERAL -> boolType();
-            case PARENTHESIS, THIS -> getExprType(expr.getChild(0));
+            case PARENTHESIS -> getExprType(expr.getChild(0));
+            case THIS -> new JmmClassType(table.getFullyQualifiedName(), false, false);
             case IMPLICIT_THIS_FUNCTION_CALL -> getMethodCallType(expr, new JmmClassType(table.getFullyQualifiedName(), false, false));
-            //case FUNCTION_CALL -> This implementation is missing
+            case ARRAY_ACCESS -> arrayAccessType(expr);
+            case FUNCTION_CALL -> getMethodCallTypeFC(expr, getExprType(expr.getChild(0)).asClass());
+            case CONSTRUCTOR -> classConstructorType(expr);
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -98,29 +114,11 @@ public class TypeUtils {
                 type = type.getChild(0);
                 dim++;
             }
-            return new JmmArrayType(getTypeParam(param), dim);
+            return new JmmArrayType(convertType(type), dim);
         }
-        else {
-            String fqn;
-            boolean imported = false;
-            String name = type.get("name");
-            if(Objects.equals(name, table.getClassName()))
-                fqn = table.getFullyQualifiedName();
-            else if(table.getImports().stream()    //I think this could be simplified if the imports are added to declaredClasses
-                    .anyMatch(imp -> imp.endsWith("." + name) || imp.equals(name))) {
-                imported = true;
-                fqn = table.getImports().stream()
-                        .filter(imp -> imp.endsWith("." + name) || imp.equals(name))
-                        .findFirst().get();
-            }
-            else if(Importer.fromThisClassPath().isImplicitImport(name)) {
-                imported = true;
-                fqn = name;
-            }
-            else
-                throw new RuntimeException("Can't compute type for param of type '" + name + "'");
-            return new JmmClassType(fqn, imported, false);  //staticRef not determined
-        }
+        else
+            return classType(type);
+
     }
 
     public Signature getMethodDeclSignature(JmmNode methodDecl) {
@@ -147,16 +145,33 @@ public class TypeUtils {
         return st.getMethod(sig).orElseThrow().returnType();
     }
 
+    public JmmType getMethodCallTypeFC(JmmNode methodCall, JmmClassType classType) {    //I have to try to unify it with the one above
+        var methodName = methodCall.get("func");
+        var params = methodCall.getChildren(EXPR).subList(1, methodCall.getChildren(EXPR).toArray().length).stream().map(this::getExprType).toList();   //Too ugly, to change!!! The first child would be the previous reference
+        var sig = new Signature(methodName, params);
+        var className = classType.fullyQualifiedName();
+        var st = Importer.fromThisClassPath().getSymbolTableOf(className).orElseThrow();
+        return st.getMethod(sig).orElseThrow().returnType();
+    }
+
     public JmmType getMethodType(JmmNode methodDecl) {
         METHOD_DECL.check(methodDecl);
-        var type = methodDecl.getChild(0).get("name");
-        return switch (type) {
-            case "int" -> intType();
-            case "boolean" -> boolType();
-            case "void" -> voidType();
-            default ->
-                    throw new RuntimeException("Can't compute type for method '" + methodDecl.get("name") + "'");
-        };
+        var type = methodDecl.getChild(0);
+        if(JmmKind.check(type, BASE_TYPE))
+            return switch (type.get("name")) {
+                case "int" -> TypeUtils.intType();
+                case "boolean" -> TypeUtils.boolType();
+                case "void" -> TypeUtils.voidType();
+                default ->
+                        throw new RuntimeException("Can't compute type for param '" + methodDecl.get("name") + "'");
+            };
+        // If it isn't a base type
+        if(JmmKind.check(type, ARRAY_TYPE)) {
+            return arrayType(methodDecl);
+        }
+        else {
+            return classType(type);
+        }
     }
 
     private JmmType getBinExprType(JmmNode binaryExpr) {
@@ -203,6 +218,16 @@ public class TypeUtils {
         var asLocal = method.getLocalVariable(varName);
         if (asLocal.isPresent()) return asLocal.get().type();
 
+        if(Importer.fromThisClassPath().isImplicitImport(varName)) return new JmmClassType(varName, true, true);
+
+        var staticRef = table.getClassName();
+        if(varName.equals(staticRef))
+            return new JmmClassType(table.getFullyQualifiedName(), false, true);
+
+        var staticRef2 = table.getImportNames().stream().filter(imp -> imp.equals(varName)).findFirst();
+        if(staticRef2.isPresent())
+            return new JmmClassType(table.getImportedFullyQualifiedName(varName).orElseThrow(), true, true);
+
         return getFieldType(varRefExpr);
         // Expand to search in imported classes
     }
@@ -225,4 +250,122 @@ public class TypeUtils {
         throw new RuntimeException("Can't compute type for field '" + fieldName + "'");
     }
 
+    public boolean isAssignable(JmmType destinationType, JmmType sourceType) {
+        //Check base and array types
+        if(destinationType.isPrimitive() || destinationType.isArray())
+            if(destinationType.equals(sourceType))
+                return true;
+
+        var curType = new JmmClassType(table.getFullyQualifiedName(), false, false);
+
+        if(destinationType.equals(curType) || sourceType.equals(curType)) {
+            var destFQN = destinationType.asClass().fullyQualifiedName();
+            var sourceFQN = sourceType.asClass().fullyQualifiedName();
+            if(sourceFQN.equals(destFQN))
+                return true;
+            sourceFQN = table.getSuperFullyQualifiedName();
+            while(sourceFQN != null) {
+                if(sourceFQN.equals(destFQN))
+                    return true;
+                sourceFQN = Importer.fromThisClassPath().getSymbolTableOf(sourceFQN).orElseThrow().getSuperFullyQualifiedName();
+            }
+        }
+
+        Class<?> destClass;
+        Class<?> sourceClass;
+        var checkClass = Importer.fromThisClassPath().tryClassOf(destinationType.asClass().fullyQualifiedName());
+        if (checkClass.isPresent())
+            destClass = checkClass.get();
+        else {
+            checkClass = Importer.fromThisClassPath().loadImplicit(destinationType.asClass().fullyQualifiedName());
+            if (checkClass.isPresent())
+                destClass = checkClass.get();
+            else
+                throw new RuntimeException("Can't compute type for type '" + destinationType.asClass().fullyQualifiedName() + "'");
+
+        }
+
+        checkClass = Importer.fromThisClassPath().tryClassOf(sourceType.asClass().fullyQualifiedName());
+        if (checkClass.isPresent())
+            sourceClass = checkClass.get();
+        else {
+            checkClass = Importer.fromThisClassPath().loadImplicit(sourceType.asClass().fullyQualifiedName());
+            if (checkClass.isPresent())
+                sourceClass = checkClass.get();
+            else
+                throw new RuntimeException("Can't compute type for type '" + sourceType.asClass().fullyQualifiedName() + "'");
+        }
+        return destClass.isAssignableFrom(sourceClass);
+    }
+
+    private JmmType arrayAccessType(JmmNode arrayAccessExpr) {
+        var arrayID = arrayAccessExpr.getChild(0); //Basically, the array identifier/call, whatever.
+        var arrayType = getExprType(arrayID);
+        if(!arrayType.isArray())
+            throw new RuntimeException("Can't compute type for array access expression '" + arrayAccessExpr + "'");
+        var arrayDepth = arrayType.asArray().dimension();
+        var accessDepth = arrayAccessExpr.getChildren(ARRAY_INDEX).size();
+        if(arrayDepth > accessDepth)
+            return new JmmArrayType(arrayType.asArray().itemType(), arrayDepth - accessDepth);
+        else if(arrayDepth == accessDepth)
+            return arrayType.asArray().itemType();
+        throw new RuntimeException("Invalid access to array '" + arrayAccessExpr + "'");
+    }
+
+    private JmmClassType classType(JmmNode node) {
+        String fqn;
+        boolean imported = false;
+        String name = node.get("name");
+        if(name.equals(table.getClassName()))
+            fqn = table.getFullyQualifiedName();
+        else if(table.getImportNames().contains(name)) {
+            imported = true;
+            fqn = table.getImportedFullyQualifiedName(name).get();
+        }
+        else if(Importer.fromThisClassPath().isImplicitImport(name)) {
+            imported = true;
+            fqn = name;
+        }
+        else
+            throw new RuntimeException("Can't find class with name '" + name + "'");
+        return new JmmClassType(fqn, imported, false);  //staticRef not determined
+    }
+
+    private JmmArrayType arrayType(JmmNode node) {
+        var type = node.getChild(0);
+        int dim = 0;
+        while (!JmmKind.check(type, BASE_TYPE) && !JmmKind.check(type, CLASS_TYPE) ) {
+            type = type.getChild(0);
+            dim++;
+        }
+        return new JmmArrayType(convertType(type), dim);
+    }
+
+    private JmmClassType classConstructorType(JmmNode node) {
+        String fqn;
+        boolean imported = false;
+        String name = node.get("classType");
+        if(name.equals(table.getClassName()))
+            fqn = table.getFullyQualifiedName();
+        else if(table.getImportNames().contains(name)) {
+            imported = true;
+            fqn = table.getImportedFullyQualifiedName(name).get();
+        }
+        else if(Importer.fromThisClassPath().isImplicitImport(name)) {
+            imported = true;
+            fqn = name;
+        }
+        else
+            throw new RuntimeException("Can't find class with name '" + name + "'");
+
+        var params = node.getChildren(EXPR);
+        if(!params.isEmpty()) {
+            var paramTypes = params.stream().map(this::getExprType).toList();
+            var sig = new Signature(name, paramTypes);
+            var st = Importer.fromThisClassPath().getSymbolTableOf(fqn).orElseThrow();
+            return st.getMethod(sig).orElseThrow().returnType().asClass();  //A constructor with arguments has to be declared, right?
+        }
+
+        return new JmmClassType(fqn, imported, false);
+    }
 }

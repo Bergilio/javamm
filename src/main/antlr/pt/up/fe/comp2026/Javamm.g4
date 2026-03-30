@@ -89,11 +89,12 @@ stmt
 // Need to improve extension
 expr
     : '(' expr ')' #Parenthesis
-    | expr (arrayIndex)+ #ArrayAcess
+    | expr (arrayIndex)+ #ArrayAccess
     | expr '.' LENGTH #LengthOperator
     | expr '.' func=ID '(' (expr (',' expr)* )? ')' #FunctionCall
+    | func=ID '(' (expr (',' expr)* )? ')' #ImplicitThisFunctionCall
     | NEW name=(INT|BOOLEAN|VOID) (arrayIndex)+ #ArrayAlloc
-    | NEW name=(INT|BOOLEAN|VOID) (arrayDim)+ ('{' (expr (',' expr)*)? '}') #ArrayAlloc
+    | NEW name=(INT|BOOLEAN|VOID) (arrayDim)+ ('{' (expr (',' expr)*)? '}') #ArrayAllocInit
     | NEW classType=ID '(' (expr (',' expr)*)? ')' #Constructor
     | op=('!'|'+'|'-'|'++'|'--') expr #UnaryExpr
     | expr op=('*'|'/'|'%') expr #BinaryExpr
@@ -104,9 +105,8 @@ expr
     | expr op='||' expr #BinaryExpr
     | value=INTEGER #IntegerLiteral
     | value=BOOL #BooleanLiteral
-    | name=ID #VarRefExpr
     | THIS '.' expr #This
-    | func=ID '(' (expr (',' expr)* )? ')' #ImplicitThisFunctionCall
+    | name=ID #VarRefExpr
     ;
 
 arrayIndex

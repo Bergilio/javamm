@@ -26,8 +26,7 @@ public class LocalCallsSemanticPass extends AnalysisVisitor {
         var methodName = functionCall.get("func");
         var target = functionCall.getChild(0);
 
-        boolean isLocalCall = target.isInstance(THIS) ||
-                (target.isInstance(VAR_REF_EXPR) && target.get("name").equals("this"));
+        boolean isLocalCall = target.isInstance(THIS);
 
         if (!isLocalCall) {
             return null;

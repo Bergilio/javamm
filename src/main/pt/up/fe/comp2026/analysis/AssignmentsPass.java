@@ -29,17 +29,18 @@ public class AssignmentsPass extends AnalysisVisitor {
     private Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
         var varType = getVarType(assignStmt.get("var"), table);
         var exprType = TypeUtils.with(table).getExprType(assignStmt.getChildren(EXPR).getFirst());
-        if(!varType.equals(exprType))
-            addReport(newError(assignStmt, "Assigned and Assignee types don't match"));
+        if(!TypeUtils.with(table).isAssignable(varType, exprType))
+            addReport(newError(assignStmt, "Can't assign " + varType + " to " + exprType));
         return null;
     }
 
     private Void visitVarDecl(JmmNode varDecl, SymbolTable table) {
         if(varDecl.getChildren(EXPR).isEmpty())
             return null;
-        var assigneeType = TypeUtils.with(table).getExprType(varDecl.getChildren(EXPR).getFirst());
-        if(!varDecl.getChild(0).equals(assigneeType))
-            addReport(newError(varDecl, "Assigned and Assignee types don't match"));
+        var tU = TypeUtils.with(table);
+        var assigneeType = tU.getExprType(varDecl.getChildren(EXPR).getFirst());
+        if(!TypeUtils.with(table).isAssignable(tU.convertType(varDecl.getChild(0)), assigneeType))
+            addReport(newError(varDecl, "Can't assign " + tU.convertType(varDecl.getChild(0)) + " to " + assigneeType));
         return null;
     }
 
