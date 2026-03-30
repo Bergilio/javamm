@@ -105,7 +105,7 @@ expr
     | expr op='||' expr #BinaryExpr
     | value=INTEGER #IntegerLiteral
     | value=BOOL #BooleanLiteral
-    | THIS '.' expr #This
+    | THIS #This
     | name=ID #VarRefExpr
     ;
 

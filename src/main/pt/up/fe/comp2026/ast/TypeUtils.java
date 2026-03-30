@@ -150,8 +150,11 @@ public class TypeUtils {
         var params = methodCall.getChildren(EXPR).subList(1, methodCall.getChildren(EXPR).toArray().length).stream().map(this::getExprType).toList();   //Too ugly, to change!!! The first child would be the previous reference
         var sig = new Signature(methodName, params);
         var className = classType.fullyQualifiedName();
-        var st = Importer.fromThisClassPath().getSymbolTableOf(className).orElseThrow();
-        return st.getMethod(sig).orElseThrow().returnType();
+        var st = Importer.fromThisClassPath().getSymbolTableOf(className);
+        if(st.isPresent())
+            return st.get().getMethod(sig).orElseThrow().returnType();
+        else
+            return table.getMethod(sig).orElseThrow().returnType();
     }
 
     public JmmType getMethodType(JmmNode methodDecl) {

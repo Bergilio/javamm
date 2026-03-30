@@ -138,18 +138,23 @@ public class JmmSymbolTableBuilder {
         var names = new ArrayList<String>();
         for(var v : vars) {
             var symbol = buildVar(v);
+            if(symbol == null)
+                continue;
             if(!names.contains(symbol.name())) {
                 result.add(symbol);
                 names.add(symbol.name());
             }
             else
-                reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, node.getLine(), "Duplicate variable definition: " + symbol.name()));
+                reports.add(newError(node, "Duplicate variable definition: " + symbol.name()));
         }
         return result;
     }
 
     private Symbol buildVar(JmmNode varDecl) {
-        return new Symbol(getType(varDecl.getChild(0)), varDecl.get(JmmAttributes.VAR_DECL.NAME));
+        var type = getType(varDecl.getChild(0));
+        if(type == null)
+            return null;
+        return new Symbol(type, varDecl.get(JmmAttributes.VAR_DECL.NAME));
     }
 
     private List<MethodSymbol> buildMethods(JmmNode classDecl) {
@@ -200,13 +205,13 @@ public class JmmSymbolTableBuilder {
                 case "boolean" -> TypeUtils.boolType();
                 case "void" -> {
                     if (node.getParent().isInstance(PARAM) || node.getParent().isInstance(VAR_DECL)) // To allow the merge of VAR_DECL, PARAM and METHOD_DECL type extraction
-                        throw new RuntimeException("Param or Variable declaration can't be of type void.");
+                        reports.add(newError(node, "Param or Variable declaration can't be of type void."));
                     yield TypeUtils.voidType();
                 }
                 default ->
                         throw new RuntimeException("Can't compute type for variable/param '" + node.get("name") + "'");
             };
-        ;
+
         // If it isn't a base type
         if(JmmKind.check(node, ARRAY_TYPE)) {
             int dim = 0;
@@ -234,8 +239,10 @@ public class JmmSymbolTableBuilder {
                 imported = true;
                 fqn = name;
             }
-            else
-                throw new RuntimeException("Can't compute type for variable/param of type '" + name + "'");
+            else {
+                reports.add(newError(node, "Can't compute type of '" + name + "'"));
+                return null;
+            }
             return new JmmClassType(fqn, imported, false);  //staticRef not determined
         }
     }
