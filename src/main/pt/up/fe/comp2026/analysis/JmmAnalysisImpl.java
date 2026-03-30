@@ -27,6 +27,7 @@ public class JmmAnalysisImpl implements JmmAnalysis {
      */
     private List<AnalysisPass> buildPasses(SymbolTable table) {
         return List.of(
+                new ImportsPass(),
                 new IfElseSemanticPass(),
                 new WhileSemanticPass(),
                 new LocalCallsSemanticPass(),

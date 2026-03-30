@@ -93,6 +93,27 @@ public class TypeUtils {
             case ARRAY_ACCESS -> arrayAccessType(expr);
             case FUNCTION_CALL -> getMethodCallTypeFC(expr, getExprType(expr.getChild(0)).asClass());
             case CONSTRUCTOR -> classConstructorType(expr);
+            case FIELD_ACCESS -> getFieldType(expr);
+            case ARRAY_ALLOC -> {
+                var type = expr.get("name");
+                JmmPrimitiveType ftype = null; //Is it supposed to support classes?
+                switch (type) {
+                    case "int" ->  ftype = intType();
+                    case "boolean" ->  ftype = boolType();
+                    case "void" ->  ftype = voidType();
+                }
+                yield new JmmArrayType(ftype, expr.getChildren(ARRAY_INDEX).size());
+            }
+            case ARRAY_ALLOC_INIT -> {
+                var type = expr.get("name");
+                JmmPrimitiveType ftype = null; //Is it supposed to support classes?
+                switch (type) {
+                    case "int" ->  ftype = intType();
+                    case "boolean" ->  ftype = boolType();
+                    case "void" ->  ftype = voidType();
+                }
+                yield new JmmArrayType(ftype, expr.getChildren(ARRAY_DIM).size());
+            }
             default ->
                     throw new UnsupportedOperationException("Can't compute type for expression kind '" + expr.getKind() + "'");
         };
@@ -138,23 +159,34 @@ public class TypeUtils {
 
     public JmmType getMethodCallType(JmmNode methodCall, JmmClassType classType) {
         var methodName = methodCall.get("func");
-        var params = methodCall.getChildren(EXPR).stream().map(this::getExprType).toList();
+        var params = methodCall.getChildren(EXPR).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
         var sig = new Signature(methodName, params);
-        var className = classType.fullyQualifiedName();
-        var st = Importer.fromThisClassPath().getSymbolTableOf(className).orElseThrow();
-        return st.getMethod(sig).orElseThrow().returnType();
+        return findMethod(table, methodCall, sig, methodName);
     }
 
     public JmmType getMethodCallTypeFC(JmmNode methodCall, JmmClassType classType) {    //I have to try to unify it with the one above
         var methodName = methodCall.get("func");
-        var params = methodCall.getChildren(EXPR).subList(1, methodCall.getChildren(EXPR).toArray().length).stream().map(this::getExprType).toList();   //Too ugly, to change!!! The first child would be the previous reference
+        var target = methodCall.getChild(0);
+        var params = methodCall.getChildren(EXPR).subList(1, methodCall.getChildren(EXPR).toArray().length).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
         var sig = new Signature(methodName, params);
-        var className = classType.fullyQualifiedName();
-        var st = Importer.fromThisClassPath().getSymbolTableOf(className);
-        if(st.isPresent())
-            return st.get().getMethod(sig).orElseThrow().returnType();
+
+        var called = TypeUtils.with(table).getExprType(target);
+
+        Optional<SymbolTable> curTable = Optional.empty();
+        if(called.asClass().fullyQualifiedName().equals(table.getFullyQualifiedName()))
+            curTable = Optional.of(table);
         else
-            return table.getMethod(sig).orElseThrow().returnType();
+        if(Importer.fromThisClassPath().isImplicitImport(called.asClass().fullyQualifiedName()))
+            curTable = Importer.fromThisClassPath().tryImplicitImport(called.asClass().fullyQualifiedName());
+        else if(Importer.fromThisClassPath().inClassPath(called.asClass().fullyQualifiedName()))
+            curTable = Importer.fromThisClassPath().getSymbolTableOf(called.asClass().fullyQualifiedName());
+
+        if(curTable.isEmpty())
+            throw  new RuntimeException("Can't find method '" + methodName + "'");
+
+
+        var fTable = curTable.get();
+        return findMethod(fTable, methodCall, sig, methodName);
     }
 
     public JmmType getMethodType(JmmNode methodDecl) {
@@ -370,5 +402,26 @@ public class TypeUtils {
         }
 
         return new JmmClassType(fqn, imported, false);
+    }
+
+    private JmmType findMethod(SymbolTable table, JmmNode call, Signature sig, String methodName) {
+        if (table.getMethod(sig).isEmpty() && table.getSuper() == null)
+            throw new RuntimeException("Can't find method '" + methodName + "'");
+        else if(table.getMethod(sig).isEmpty()) {
+            var fqn = table.getSuperFullyQualifiedName();
+            while(fqn != null) {
+                var newTable = Importer.fromThisClassPath().getSymbolTableOf(fqn);
+                if(newTable.isEmpty())
+                    newTable = Importer.fromThisClassPath().tryImplicitImport(fqn);
+                if(newTable.isEmpty())
+                    break;
+
+                else if(newTable.get().getMethod(sig).isPresent())
+                    return newTable.get().getMethod(sig).get().returnType();
+                fqn = newTable.get().getSuperFullyQualifiedName();
+            }
+            throw  new RuntimeException("Can't find method '" + methodName + "'");
+        }
+        return table.getMethod(sig).get().returnType();
     }
 }

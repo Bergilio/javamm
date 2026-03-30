@@ -16,11 +16,16 @@ public class LocalCallsSemanticPass extends AnalysisVisitor {
     protected void buildVisitor() {
         addVisit(IMPLICIT_THIS_FUNCTION_CALL, this::visitImplicitThisCall);
         addVisit(FUNCTION_CALL, this::visitFunctionCall);
+        //addVisit(FIELD_ACCESS, this::visitFieldAccess);
     }
-
+/*  TODO: PROBABLY NEEDED
+    private Void visitFieldAccess(JmmNode field, SymbolTable table) {
+        var fieldName = field.
+    }
+*/
     private Void visitImplicitThisCall(JmmNode call, SymbolTable table) {
         var methodName = call.get("func");
-        var params = call.getChildren(EXPR).subList(1, call.getChildren(EXPR).toArray().length).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
+        var params = call.getChildren(EXPR).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
         var sig = new Signature(methodName, params);
         return findMethod(table, call, sig, methodName);
     }

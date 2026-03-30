@@ -92,6 +92,7 @@ expr
     | expr (arrayIndex)+ #ArrayAccess
     | expr '.' LENGTH #LengthOperator
     | expr '.' func=ID '(' (expr (',' expr)* )? ')' #FunctionCall
+    | expr '.' name=ID #FieldAccess
     | func=ID '(' (expr (',' expr)* )? ')' #ImplicitThisFunctionCall
     | NEW name=(INT|BOOLEAN|VOID) (arrayIndex)+ #ArrayAlloc
     | NEW name=(INT|BOOLEAN|VOID) (arrayDim)+ ('{' (expr (',' expr)*)? '}') #ArrayAllocInit
