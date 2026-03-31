@@ -12,7 +12,7 @@ public class LoopSemanticPass extends AnalysisVisitor {
     protected void buildVisitor() {
         addVisit(WHILE_STMT, this::visitWhileStmt);
         addVisit(DO_WHILE_STMT, this::visitDoWhileStmt);
-        //addVisit(FOR_STMT, this::visitForStmt);
+        addVisit(FOR_STMT, this::visitForStmt);
     }
 
     private Void visitWhileStmt(JmmNode whileStmt, SymbolTable table) {
@@ -20,19 +20,31 @@ public class LoopSemanticPass extends AnalysisVisitor {
 
         var type = TypeUtils.with(table).getExprType(condition);
 
-        if (!type.equals(TypeUtils.boolType())) {
+        if (!type.equals(TypeUtils.boolType())) 
             addReport(newError(condition, "While condition must be boolean"));
-        }
+
         return null;
     }
+
     private Void visitDoWhileStmt(JmmNode doWhileStmt, SymbolTable table) {
         var condition = doWhileStmt.getChildren(EXPR).getFirst();
 
         var type = TypeUtils.with(table).getExprType(condition);
 
-        if (!type.equals(TypeUtils.boolType())) {
+        if (!type.equals(TypeUtils.boolType()))
             addReport(newError(condition, "Do While condition must be boolean"));
-        }
+
+        return null;
+    }
+
+    private Void visitForStmt(JmmNode forStmt, SymbolTable table) {
+        var condition = forStmt.getChildren(EXPR).getFirst();
+
+        var type = TypeUtils.with(table).getExprType(condition);
+
+        if (!type.equals(TypeUtils.boolType()))
+            addReport(newError(condition, "For condition must be boolean"));
+
         return null;
     }
 }

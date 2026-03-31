@@ -19,6 +19,7 @@ public class AssignmentsPass extends AnalysisVisitor {
         addVisit(JmmKind.ASSIGN_STMT, this::visitAssignStmt);
         addVisit(JmmKind.ASSIGN_ARRAY_ELEMENT_STMT, this::visitArrayAssignStmt);
         addVisit(JmmKind.VAR_DECL, this::visitVarDecl);
+        addVisit(ASSIGN_FOR, this::visitAssignStmt);
     }
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
