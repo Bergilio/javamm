@@ -208,8 +208,10 @@ public class JmmSymbolTableBuilder {
                         reports.add(newError(node, "Param or Variable declaration can't be of type void."));
                     yield TypeUtils.voidType();
                 }
-                default ->
-                        throw new RuntimeException("Can't compute type for variable/param '" + node.get("name") + "'");
+                default -> {
+                        reports.add(newError(node, "Can't compute type for variable/param '" + node.get("name") + "'"));
+                        yield null;
+                }
             };
 
         // If it isn't a base type

@@ -89,29 +89,29 @@ public class TypeUtils {
             case BOOLEAN_LITERAL -> boolType();
             case PARENTHESIS -> getExprType(expr.getChild(0));
             case THIS -> new JmmClassType(table.getFullyQualifiedName(), false, false);
-            case IMPLICIT_THIS_FUNCTION_CALL -> getMethodCallType(expr, new JmmClassType(table.getFullyQualifiedName(), false, false));
+            case IMPLICIT_THIS_FUNCTION_CALL -> getMethodCallType(expr);
             case ARRAY_ACCESS -> arrayAccessType(expr);
-            case FUNCTION_CALL -> getMethodCallTypeFC(expr, getExprType(expr.getChild(0)).asClass());
+            case FUNCTION_CALL -> getMethodCallTypeFC(expr);
             case CONSTRUCTOR -> classConstructorType(expr);
             case FIELD_ACCESS -> getFieldType(expr);
             case ARRAY_ALLOC -> {
                 var type = expr.get("name");
-                JmmPrimitiveType ftype = null; //Is it supposed to support classes?
-                switch (type) {
-                    case "int" ->  ftype = intType();
-                    case "boolean" ->  ftype = boolType();
-                    case "void" ->  ftype = voidType();
-                }
+                JmmType ftype = null; //Is it supposed to support classes?
+                if(JmmPrimitiveType.fromString(type).isEmpty())
+                    ftype = classType(type);
+                else
+                    ftype = JmmPrimitiveType.fromString(type).get();
+                
                 yield new JmmArrayType(ftype, expr.getChildren(ARRAY_INDEX).size() + expr.getChildren(ARRAY_DIM).size());
             }
             case ARRAY_ALLOC_INIT -> {
                 var type = expr.get("name");
-                JmmPrimitiveType ftype = null; //Is it supposed to support classes?
-                switch (type) {
-                    case "int" ->  ftype = intType();
-                    case "boolean" ->  ftype = boolType();
-                    case "void" ->  ftype = voidType();
-                }
+                JmmType ftype = null; //Is it supposed to support classes?
+                if(JmmPrimitiveType.fromString(type).isEmpty())
+                    ftype = classType(type);
+                else
+                    ftype = JmmPrimitiveType.fromString(type).get();
+
                 yield new JmmArrayType(ftype, expr.getChildren(ARRAY_DIM).size());
             }
             default ->
@@ -157,14 +157,14 @@ public class TypeUtils {
         return new Signature(methodName, params);
     }
 
-    public JmmType getMethodCallType(JmmNode methodCall, JmmClassType classType) {
+    public JmmType getMethodCallType(JmmNode methodCall) {
         var methodName = methodCall.get("func");
         var params = methodCall.getChildren(EXPR).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
         var sig = new Signature(methodName, params);
         return findMethod(table, methodCall, sig, methodName);
     }
 
-    public JmmType getMethodCallTypeFC(JmmNode methodCall, JmmClassType classType) {    //I have to try to unify it with the one above
+    public JmmType getMethodCallTypeFC(JmmNode methodCall) {    //I have to try to unify it with the one above
         var methodName = methodCall.get("func");
         var target = methodCall.getChild(0);
         var params = methodCall.getChildren(EXPR).subList(1, methodCall.getChildren(EXPR).toArray().length).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
@@ -350,6 +350,24 @@ public class TypeUtils {
         String fqn;
         boolean imported = false;
         String name = node.get("name");
+        if(name.equals(table.getClassName()))
+            fqn = table.getFullyQualifiedName();
+        else if(table.getImportNames().contains(name)) {
+            imported = true;
+            fqn = table.getImportedFullyQualifiedName(name).get();
+        }
+        else if(Importer.fromThisClassPath().isImplicitImport(name)) {
+            imported = true;
+            fqn = name;
+        }
+        else
+            throw new RuntimeException("Can't find class with name '" + name + "'");
+        return new JmmClassType(fqn, imported, false);  //staticRef not determined
+    }
+
+    private JmmClassType classType(String name) {
+        String fqn;
+        boolean imported = false;
         if(name.equals(table.getClassName()))
             fqn = table.getFullyQualifiedName();
         else if(table.getImportNames().contains(name)) {
