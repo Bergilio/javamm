@@ -49,7 +49,8 @@ importDecl
 classDecl
     : CLASS name=ID (EXTENDS extension=ID)?
     '{' 
-    (varDecl | methodDecl)* '}'
+    (varDecl | methodDecl)*
+    '}'
     ;
 
 varDecl
