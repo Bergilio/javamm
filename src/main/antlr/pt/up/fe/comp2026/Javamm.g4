@@ -83,7 +83,7 @@ stmt
     | FOR '(' (ID '=' expr)? ';' (expr)? ';' ((ID '=' expr) | (ID ('++'|'--')) | (('++'|'--') ID))? ')' stmt #ForStmt // stmt in the for has to be Assign
     | DO stmt WHILE '(' expr ')' ';' #DoWhileStmt // Does stmt have to be a block?
     | expr ';'  #ExprStmt
-    | ID (arrayIndex)+ '=' expr ';' #AssignArrayElementStmt
+    | var=ID (arrayIndex)+ '=' expr ';' #AssignArrayElementStmt
     ;
 
 // Need to improve extension

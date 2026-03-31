@@ -23,7 +23,8 @@ public class UndeclaredVarPass extends AnalysisVisitor {
 
     private Void visitVarRefExpr(JmmNode varRefExpr, SymbolTable table) {
         var varRefName = varRefExpr.get("name");
-
+        if(table.getClassName().equals(varRefName) || table.getImportedFullyQualifiedName(varRefName).isPresent() || Importer.fromThisClassPath().isImplicitImport(varRefName))
+            return null;
         if(currentMethod.getParameter(varRefName).isPresent())
             return null;
         if(currentMethod.getLocalVariable(varRefName).isPresent())

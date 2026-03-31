@@ -396,7 +396,7 @@ public class TypeUtils {
         var params = node.getChildren(EXPR);
         if(!params.isEmpty()) {
             var paramTypes = params.stream().map(this::getExprType).toList();
-            var sig = new Signature(name, paramTypes);
+            var sig = new Signature("<init>", paramTypes);
             var st = Importer.fromThisClassPath().getSymbolTableOf(fqn).orElseThrow();
             return st.getMethod(sig).orElseThrow().returnType().asClass();  //A constructor with arguments has to be declared, right?
         }

@@ -34,7 +34,8 @@ public class JmmAnalysisImpl implements JmmAnalysis {
                 new ReturnSemanticPass(),
                 new UndeclaredVarPass(),
                 new OperationTypesPass(),
-                new AssignmentsPass()
+                new AssignmentsPass(),
+                new ArrayPass()
         );
     }
 
