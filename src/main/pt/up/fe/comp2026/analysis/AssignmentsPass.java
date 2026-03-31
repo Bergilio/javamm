@@ -30,6 +30,10 @@ public class AssignmentsPass extends AnalysisVisitor {
     // None of this passes check the NEW stmts, methods, classes, etc. Only does the basic of base types (to expand)
     private Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
         var varType = getVarType(assignStmt.get("var"), table);
+        if(varType == null) {
+            addReport(newError(assignStmt, "Can't compute type of variable."));
+            return null;
+        }
         var exprType = TypeUtils.with(table).getExprType(assignStmt.getChildren(EXPR).getFirst());
         if(!TypeUtils.with(table).isAssignable(varType, exprType))
             addReport(newError(assignStmt, "Can't assign " + exprType + " to " + varType));
@@ -85,7 +89,7 @@ public class AssignmentsPass extends AnalysisVisitor {
             classTable = Importer.fromThisClassPath().getSymbolTableOf(superClass).orElseThrow();
         }
 
-        throw new RuntimeException("Can't compute type for field '" + varName + "'");
+        return null;
         // Expand to search in imported classes
     }
 

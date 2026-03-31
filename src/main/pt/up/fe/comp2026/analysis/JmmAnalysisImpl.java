@@ -29,7 +29,7 @@ public class JmmAnalysisImpl implements JmmAnalysis {
         return List.of(
                 new ImportsPass(),
                 new IfElseSemanticPass(),
-                new WhileSemanticPass(),
+                new LoopSemanticPass(),
                 new LocalCallsSemanticPass(),
                 new ReturnSemanticPass(),
                 new UndeclaredVarPass(),

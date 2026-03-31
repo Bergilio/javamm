@@ -18,6 +18,7 @@ public class ArrayPass extends AnalysisVisitor{
         addVisit(JmmKind.ARRAY_INDEX, this::visitArrayIndex);
         addVisit(JmmKind.LENGTH_OPERATOR, this::visitLength);
         addVisit(JmmKind.ARRAY_ALLOC_INIT, this::visitArrayInit);
+        addVisit(JmmKind.ARRAY_ALLOC, this::visitArrayAlloc);
     }
 
     private Void visitArrayIndex(JmmNode arrayInd, SymbolTable table) {
@@ -45,6 +46,22 @@ public class ArrayPass extends AnalysisVisitor{
 
         if(elements.stream().map(e -> TypeUtils.with(table).getExprType(e)).filter(e -> TypeUtils.with(table).isAssignable(base_type, e)).count() != elements.size())
             addReport(newError(arrayInit, "Elements attributed to the array do not match the declared type."));
+        return null;
+    }
+
+    private Void visitArrayAlloc(JmmNode arrayAlloc, SymbolTable table) {
+        if(!(JmmKind.check(arrayAlloc.getChild(0), JmmKind.ARRAY_INDEX)))   //Forces the first dimension to have a defined size, particularly for multidim arrays
+            addReport(newError(arrayAlloc, "The first dimension of an array must be defined."));
+        var missing = false;
+        var inits = arrayAlloc.getChildren();
+        for(var i : inits)
+            if(i.getChildren().isEmpty())
+                missing = true;
+            else if(missing) {
+                addReport(newError(arrayAlloc, "Gap in array dimension definition."));
+                return null;
+            }
+        
         return null;
     }
 }

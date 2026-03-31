@@ -102,7 +102,7 @@ public class TypeUtils {
                     case "boolean" ->  ftype = boolType();
                     case "void" ->  ftype = voidType();
                 }
-                yield new JmmArrayType(ftype, expr.getChildren(ARRAY_INDEX).size());
+                yield new JmmArrayType(ftype, expr.getChildren(ARRAY_INDEX).size() + expr.getChildren(ARRAY_DIM).size());
             }
             case ARRAY_ALLOC_INIT -> {
                 var type = expr.get("name");
@@ -380,28 +380,29 @@ public class TypeUtils {
         String fqn;
         boolean imported = false;
         String name = node.get("classType");
+        SymbolTable st = table;
         if(name.equals(table.getClassName()))
             fqn = table.getFullyQualifiedName();
         else if(table.getImportNames().contains(name)) {
             imported = true;
             fqn = table.getImportedFullyQualifiedName(name).get();
+            st = Importer.fromThisClassPath().getSymbolTableOf(fqn).orElseThrow();
         }
         else if(Importer.fromThisClassPath().isImplicitImport(name)) {
             imported = true;
             fqn = name;
+            st = Importer.fromThisClassPath().tryImplicitImport(fqn).orElseThrow();
         }
         else
             throw new RuntimeException("Can't find class with name '" + name + "'");
 
-        var params = node.getChildren(EXPR);
-        if(!params.isEmpty()) {
-            var paramTypes = params.stream().map(this::getExprType).toList();
-            var sig = new Signature("<init>", paramTypes);
-            var st = Importer.fromThisClassPath().getSymbolTableOf(fqn).orElseThrow();
-            return st.getMethod(sig).orElseThrow().returnType().asClass();  //A constructor with arguments has to be declared, right?
-        }
+        if(st.getMethods("<init>").isEmpty())
+            return new JmmClassType(fqn, imported, false);
 
-        return new JmmClassType(fqn, imported, false);
+        var params = node.getChildren(EXPR);
+        var paramTypes = params.stream().map(this::getExprType).toList();
+        var sig = new Signature("<init>", paramTypes);
+        return st.getMethod(sig).orElseThrow().returnType().asClass();  //A constructor with arguments has to be declared, right?
     }
 
     private JmmType findMethod(SymbolTable table, JmmNode call, Signature sig, String methodName) {

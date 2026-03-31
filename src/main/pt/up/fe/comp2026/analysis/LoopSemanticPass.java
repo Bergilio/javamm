@@ -6,11 +6,13 @@ import pt.up.fe.comp2026.ast.TypeUtils;
 
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
 
-public class WhileSemanticPass extends AnalysisVisitor {
+public class LoopSemanticPass extends AnalysisVisitor {
 
     @Override
     protected void buildVisitor() {
         addVisit(WHILE_STMT, this::visitWhileStmt);
+        addVisit(DO_WHILE_STMT, this::visitDoWhileStmt);
+        //addVisit(FOR_STMT, this::visitForStmt);
     }
 
     private Void visitWhileStmt(JmmNode whileStmt, SymbolTable table) {
@@ -20,6 +22,16 @@ public class WhileSemanticPass extends AnalysisVisitor {
 
         if (!type.equals(TypeUtils.boolType())) {
             addReport(newError(condition, "While condition must be boolean"));
+        }
+        return null;
+    }
+    private Void visitDoWhileStmt(JmmNode doWhileStmt, SymbolTable table) {
+        var condition = doWhileStmt.getChildren(EXPR).getFirst();
+
+        var type = TypeUtils.with(table).getExprType(condition);
+
+        if (!type.equals(TypeUtils.boolType())) {
+            addReport(newError(condition, "Do While condition must be boolean"));
         }
         return null;
     }

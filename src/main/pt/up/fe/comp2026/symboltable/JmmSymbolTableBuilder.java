@@ -104,7 +104,7 @@ public class JmmSymbolTableBuilder {
             }
         }
         else
-            superQualifiedNameName = null;
+            superQualifiedNameName = "Object";
 
         var methods = buildMethods(classDecl);
         var fields = buildVars(classDecl);

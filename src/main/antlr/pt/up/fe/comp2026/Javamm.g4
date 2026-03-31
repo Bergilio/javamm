@@ -94,8 +94,8 @@ expr
     | expr '.' func=ID '(' (expr (',' expr)* )? ')' #FunctionCall
     | expr '.' name=ID #FieldAccess
     | func=ID '(' (expr (',' expr)* )? ')' #ImplicitThisFunctionCall
-    | NEW name=(INT|BOOLEAN|VOID) (arrayIndex)+ #ArrayAlloc
-    | NEW name=(INT|BOOLEAN|VOID) (arrayDim)+ ('{' (expr (',' expr)*)? '}') #ArrayAllocInit
+    | NEW name=(INT|BOOLEAN|ID) (arrayIndex|arrayDim)+ #ArrayAlloc
+    | NEW name=(INT|BOOLEAN|ID) (arrayDim)+ ('{' (expr (',' expr)*)? '}') #ArrayAllocInit
     | NEW classType=ID '(' (expr (',' expr)*)? ')' #Constructor
     | op=('!'|'+'|'-'|'++'|'--') expr #UnaryExpr
     | expr op=('*'|'/'|'%') expr #BinaryExpr
