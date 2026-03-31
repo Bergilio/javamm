@@ -49,8 +49,7 @@ importDecl
 classDecl
     : CLASS name=ID (EXTENDS extension=ID)?
     '{' 
-    (varDecl | methodDecl)* 
-    '}'
+    (varDecl | methodDecl)* '}'
     ;
 
 varDecl
@@ -80,10 +79,24 @@ stmt
     | '{' stmt* '}' #Block
     | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
     | WHILE '(' expr ')' stmt #WhileStmt
-    | FOR '(' (ID '=' expr)? ';' (expr)? ';' ((ID '=' expr) | (ID ('++'|'--')) | (('++'|'--') ID))? ')' stmt #ForStmt // stmt in the for has to be Assign
-    | DO stmt WHILE '(' expr ')' ';' #DoWhileStmt // Does stmt have to be a block?
+    | FOR '(' forInit? ';' forCond? ';' forUpdate? ')' stmt #ForStmt
+    | DO stmt WHILE '(' expr ')' ';' #DoWhileStmt
     | expr ';'  #ExprStmt
     | var=ID (arrayIndex)+ '=' expr ';' #AssignArrayElementStmt
+    ;
+
+forInit
+    : var=ID '=' expr
+    ;
+
+forCond
+    : expr
+    ;
+
+forUpdate
+    : var=ID '=' expr          #ForUpdateAssign
+    | var=ID op=('++'|'--')    #ForUpdatePost
+    | op=('++'|'--') var=ID    #ForUpdatePre
     ;
 
 // Need to improve extension

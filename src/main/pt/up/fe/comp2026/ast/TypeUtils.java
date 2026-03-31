@@ -288,8 +288,7 @@ public class TypeUtils {
     public boolean isAssignable(JmmType destinationType, JmmType sourceType) {
         //Check base and array types
         if(destinationType.isPrimitive() || destinationType.isArray())
-            if(destinationType.equals(sourceType))
-                return true;
+            return destinationType.equals(sourceType);
 
         var curType = new JmmClassType(table.getFullyQualifiedName(), false, false);
 
