@@ -3,6 +3,7 @@ package pt.up.fe.comp2026.analysis;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.reflection.Importer;
 import pt.up.fe.comp.jmm.ast.JmmNode;
+import pt.up.fe.comp2026.ast.TypeUtils;
 
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.IMPORT_DECL;
 
@@ -17,7 +18,6 @@ public class ImportsPass extends AnalysisVisitor{
         if(Importer.fromThisClassPath().inClassPath(fqn))
             return null;
         addReport(newError(importDecl, "Import " + fqn + " not found"));
-
         return null;
     }
 }

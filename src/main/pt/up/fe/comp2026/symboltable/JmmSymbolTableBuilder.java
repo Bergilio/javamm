@@ -174,7 +174,8 @@ public class JmmSymbolTableBuilder {
         var paramsNames = new ArrayList<String>();
 
         for(JmmNode child : children) {
-            var symbol = new Symbol(getType(child.getChild(0)), child.get(JmmAttributes.PARAM.NAME));
+            var childType = getType(child.getChild(0));
+            var symbol = new Symbol(childType, child.get(JmmAttributes.PARAM.NAME));
             if(!paramsNames.contains(symbol.name())) {
                 params.add(symbol);
                 paramsNames.add(symbol.name());
@@ -182,8 +183,6 @@ public class JmmSymbolTableBuilder {
             else
                 reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, method.getLine(), "Duplicate parameter name: " + symbol.name()));
         }
-
-        //var params = List.of(new Symbol(TypeUtils.intType(), method.getChildren(PARAM).getFirst().get(JmmAttributes.PARAM.NAME)));
 
         //System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
         var locals = buildVars(method);
@@ -195,6 +194,10 @@ public class JmmSymbolTableBuilder {
 
         var visibility =  Visibility.fromString(method.getOptional("visibility").orElse(""));
         var isStatic = method.getBoolean(JmmAttributes.METHOD_DECL.IS_STATIC, false);
+        if(returnType == null) {
+            reports.add(newError(method, "Couldn't determine return type"));
+            return null;
+        }
         return new MethodSymbol(methodName, returnType, params, locals, isStatic, visibility);
     }
 
@@ -210,7 +213,7 @@ public class JmmSymbolTableBuilder {
                 }
                 default -> {
                         reports.add(newError(node, "Can't compute type for variable/param '" + node.get("name") + "'"));
-                        yield null;
+                        yield new JmmClassType("Error", false, false);
                 }
             };
 
@@ -221,8 +224,12 @@ public class JmmSymbolTableBuilder {
                 node = node.getChild(0);
                 dim++;
             }
-
-            return new JmmArrayType(getType(node), dim);
+            var arrayType = getType(node);
+            if(arrayType == null) {
+                reports.add(newError(node, "Couldn't determine type of array"));
+                return new JmmArrayType(TypeUtils.intType(), 1);
+            }
+            return new JmmArrayType(arrayType, dim);
         }
         else {
             String fqn;
@@ -242,8 +249,8 @@ public class JmmSymbolTableBuilder {
                 fqn = name;
             }
             else {
-                reports.add(newError(node, "Can't compute type of '" + name + "'"));
-                return null;
+                reports.add(newError(node, "Can't compute type '" + name + "'"));
+                return new JmmClassType("Error", false, false);
             }
             return new JmmClassType(fqn, imported, false);  //staticRef not determined
         }

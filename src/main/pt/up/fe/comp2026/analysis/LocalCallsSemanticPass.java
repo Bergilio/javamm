@@ -27,7 +27,7 @@ public class LocalCallsSemanticPass extends AnalysisVisitor {
         var methodName = call.get("func");
         var params = call.getChildren(EXPR).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
         var sig = new Signature(methodName, params);
-        return findMethod(table, call, sig, methodName);
+        return findMethod(table, call, sig, methodName, false);
     }
 
     private Void visitFunctionCall(JmmNode functionCall, SymbolTable table) {
@@ -37,6 +37,7 @@ public class LocalCallsSemanticPass extends AnalysisVisitor {
         var sig = new Signature(methodName, params);
 
         var called = TypeUtils.with(table).getExprType(target);
+        var isStatic = called.asClass().staticRef();
 
         Optional<SymbolTable> curTable = Optional.empty();
         if(called.asClass().fullyQualifiedName().equals(table.getFullyQualifiedName()))
@@ -53,10 +54,10 @@ public class LocalCallsSemanticPass extends AnalysisVisitor {
         }
 
         var fTable = curTable.get();
-        return findMethod(fTable, functionCall, sig, methodName);
+        return findMethod(fTable, functionCall, sig, methodName, isStatic);
     }
 
-    private Void findMethod(SymbolTable table, JmmNode call, Signature sig, String methodName) {
+    private Void findMethod(SymbolTable table, JmmNode call, Signature sig, String methodName, boolean isStaticCall) {
         if (table.getMethod(sig).isEmpty() && table.getSuper() == null)
             addReport(newError(call, "Method '" + methodName + "' does not exist"));
         else if(table.getMethod(sig).isEmpty()) {
@@ -67,13 +68,14 @@ public class LocalCallsSemanticPass extends AnalysisVisitor {
                     newTable = Importer.fromThisClassPath().tryImplicitImport(fqn);
                 if(newTable.isEmpty())
                     break;
-
-                else if(newTable.get().getMethod(sig).isPresent())
+                else if(newTable.get().getMethod(sig).isPresent() && (newTable.get().getMethod(sig).get().isStatic() || !isStaticCall))
                     return null;
                 fqn = newTable.get().getSuperFullyQualifiedName();
             }
             addReport(newError(call, "Method '" + methodName + "' does not exist"));
         }
+        else if(!table.getMethod(sig).get().isStatic() && isStaticCall)
+            addReport(newError(call, "Method '" + methodName + "' is not static"));
         return null;
     }
 }

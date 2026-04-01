@@ -18,11 +18,10 @@ public class ReturnSemanticPass extends AnalysisVisitor {
 
     private Void visitMethodDecl(JmmNode methodDecl, SymbolTable table) {
         var returnType = TypeUtils.with(table).getMethodType(methodDecl);
-        if (returnType.equals(TypeUtils.voidType())) return null;
         var returns = methodDecl.getDescendants(RETURN_STMT);
-        if (returns.isEmpty()) {
+        if (returns.isEmpty() && !returnType.equals(TypeUtils.voidType()))
             addReport(newError(methodDecl, "Method must have a return statement"));
-        }
+
         var signature = TypeUtils.with(table).getMethodDeclSignature(methodDecl);
         currentMethod = table.getMethod(signature).orElseThrow();
         return null;
@@ -42,11 +41,13 @@ public class ReturnSemanticPass extends AnalysisVisitor {
             addReport(newError(returnStmt, "Method can't return anything."));
             return null;
         }
+        else if(expectedType.equals(JmmPrimitiveType.VOID))
+            return null;
         var expr = returnStmt.getChild(0);
         var actualType = TypeUtils.with(table).getExprType(expr);
-        if (!TypeUtils.with(table).isAssignable(actualType, expectedType)) {
+        if (!TypeUtils.with(table).isAssignable(actualType, expectedType))
             addReport(newError(returnStmt, "Return type mismatch"));
-        }
+
         return null;
     }
 }

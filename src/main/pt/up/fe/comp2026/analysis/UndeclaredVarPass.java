@@ -25,9 +25,9 @@ public class UndeclaredVarPass extends AnalysisVisitor {
         var varRefName = varRefExpr.get("name");
         if(table.getClassName().equals(varRefName) || table.getImportedFullyQualifiedName(varRefName).isPresent() || Importer.fromThisClassPath().isImplicitImport(varRefName))
             return null;
-        if(currentMethod.getParameter(varRefName).isPresent())
+        if(currentMethod != null && currentMethod.getParameter(varRefName).isPresent())
             return null;
-        if(currentMethod.getLocalVariable(varRefName).isPresent())
+        if(currentMethod != null && currentMethod.getLocalVariable(varRefName).isPresent())
             return null;
         var classTable = table;
         while(classTable != null) {
@@ -36,7 +36,7 @@ public class UndeclaredVarPass extends AnalysisVisitor {
             var superClass = classTable.getSuperFullyQualifiedName();
             if(superClass == null)
                 break;
-            classTable = Importer.fromThisClassPath().getSymbolTableOf(superClass).orElseThrow();
+            classTable = Importer.fromThisClassPath().getSymbolTableOf(superClass).orElse(null);
         }
         // Expand to search in imported classes
         addReport(newError(varRefExpr, "Variable not declared"));

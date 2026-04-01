@@ -96,17 +96,17 @@ public class TypeUtils {
             case FIELD_ACCESS -> getFieldType(expr);
             case ARRAY_ALLOC -> {
                 var type = expr.get("name");
-                JmmType ftype = null; //Is it supposed to support classes?
+                JmmType ftype; //Is it supposed to support classes?
                 if(JmmPrimitiveType.fromString(type).isEmpty())
                     ftype = classType(type);
                 else
                     ftype = JmmPrimitiveType.fromString(type).get();
-                
+
                 yield new JmmArrayType(ftype, expr.getChildren(ARRAY_INDEX).size() + expr.getChildren(ARRAY_DIM).size());
             }
             case ARRAY_ALLOC_INIT -> {
                 var type = expr.get("name");
-                JmmType ftype = null; //Is it supposed to support classes?
+                JmmType ftype; //Is it supposed to support classes?
                 if(JmmPrimitiveType.fromString(type).isEmpty())
                     ftype = classType(type);
                 else
