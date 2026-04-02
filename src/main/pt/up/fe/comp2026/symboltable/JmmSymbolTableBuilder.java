@@ -158,16 +158,24 @@ public class JmmSymbolTableBuilder {
     }
 
     private List<MethodSymbol> buildMethods(JmmNode classDecl) {
-
-        return classDecl.getChildren(METHOD_DECL).stream()
-                .map(this::buildMethod)
-                .toList();
+        var methods = classDecl.getChildren(METHOD_DECL);
+        var result = new ArrayList<MethodSymbol>();
+        for(var m : methods) {
+            var sym = buildMethod(m);
+            if(sym == null)
+                continue;   //An error was added during the method build, so we don't need to add another
+            else if (result.stream().anyMatch(method -> method.signature().equals(sym.signature()))) {
+                reports.add(newError(m, "Method with name " + sym.name() + "already defined"));
+                continue;
+            }
+            result.add(sym);
+        }
+        return result;
     }
 
     private MethodSymbol buildMethod(JmmNode method) {
         var methodName = method.get("name");
 
-        //System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming return type of method is always int, and always has a single int parameter, needs to be expanded");
         JmmType returnType = getType(method.getChild(0));   //ReturnType in case you don't remember
         var children = method.getChildren(PARAM);
         List<Symbol> params = new ArrayList<>();
@@ -184,7 +192,6 @@ public class JmmSymbolTableBuilder {
                 reports.add(new Report(ReportType.ERROR, Stage.SEMANTIC, method.getLine(), "Duplicate parameter name: " + symbol.name()));
         }
 
-        //System.out.println("[TODO] JmmSymbolTableBuilder.buildMethod(): Assuming all VarDecls are ints, needs to be expanded");
         var locals = buildVars(method);
 
         for(var l : locals) {
