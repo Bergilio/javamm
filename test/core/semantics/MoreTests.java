@@ -680,7 +680,7 @@ public class MoreTests extends pt.up.fe.comp.test.env.JmmTestEnv {
                     int test() {
                         B obj;
                         obj = new B();
-                        return obj.nonExistent(); // B has method a() by inheritance
+                        return obj.nonExistent();
                     }
                 }""", true);
     }
