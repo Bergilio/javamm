@@ -165,7 +165,7 @@ public class JmmSymbolTableBuilder {
             if(sym == null)
                 continue;   //An error was added during the method build, so we don't need to add another
             else if (result.stream().anyMatch(method -> method.signature().equals(sym.signature()))) {
-                reports.add(newError(m, "Method with name " + sym.name() + "already defined"));
+                reports.add(newError(m, "A method with the name " + sym.name() + "and the same parameter types was already defined"));
                 continue;
             }
             result.add(sym);
