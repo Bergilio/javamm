@@ -279,6 +279,8 @@ public class TypeUtils {
 
     public boolean isAssignable(JmmType destinationType, JmmType sourceType) {
         //Check base and array types
+        if(destinationType.isPrimitive() != sourceType.isPrimitive() || destinationType.isArray() != sourceType.isArray() || destinationType.isClass() != sourceType.isClass())
+            return false;
         if(destinationType.isPrimitive() || destinationType.isArray())
             return destinationType.equals(sourceType);
 

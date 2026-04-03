@@ -4,9 +4,11 @@ import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.Signature;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.reflection.Importer;
+import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp2026.ast.TypeUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,7 +32,7 @@ public class LocalCallsSemanticPass extends AnalysisVisitor {
         var methodName = call.get("func");
         var params = call.getChildren(EXPR).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
         var sig = new Signature(methodName, params);
-        return findMethod(table, call, sig, methodName, false, tU);
+        return findMethod(table, sig, methodName, false, tU, call);
     }
 
     private Void visitFunctionCall(JmmNode functionCall, SymbolTable table) {
@@ -58,58 +60,95 @@ public class LocalCallsSemanticPass extends AnalysisVisitor {
         }
 
         var fTable = curTable.get();
-        return findMethod(fTable, functionCall, sig, methodName, isStatic, tU);
+        return findMethod(fTable, sig, methodName, isStatic, tU, functionCall);
     }
 
-    private Void findMethod(SymbolTable table, JmmNode call, Signature sig, String methodName, boolean isStaticCall, TypeUtils tU) {
-        if(matchInheritance(table, sig, methodName, isStaticCall, tU))
-            return null;
-        addReport(newError(call, "Can't find method with " + sig.toString()));
+    //Copied from TYpeUtils... I don't like it, but I don't want to instantiate it either as it will fail with imported tables...
+    //I can't guarantee your sanity bellow this point... I hate Java and its inheritance, man...
+    private Void findMethod(SymbolTable table, Signature sig, String methodName, boolean isStaticCall, TypeUtils tU, JmmNode call) {
+        SymbolTable curTable = table;
+
+        while(curTable != null) {
+            var possibilities = curTable.getMethods(methodName);
+            List<MethodSymbol> candidates = new ArrayList<>();
+
+            for(var p : possibilities)
+                if (isCompatible(p, sig, isStaticCall, tU))
+                    candidates.add(p);
+
+            //Get the best match. Long story short, this is my attempt at handling the filthy inheritance and its ambiguity
+            //Like imagine, if we have a(Fruit f, Apple a), a(Fruit f, Fruit f) and then a(new Apple(), new Apple()), which should be called? Ah, Apple extends Fruit
+            //And if we have a(Fruit f, Apple a), a(Apple a, Fruit f). Congratulations, different signatures but an ambiguity problem, I think.
+            //Basically, we have to check which is more specific, if any
+            //Do we even have to handle this kind of inheritance problem???
+            if(!candidates.isEmpty())
+                return mostSpecific(candidates, tU, call);
+
+            String fqn = curTable.getSuperFullyQualifiedName();
+            if(fqn == null)
+                break;
+
+            var imported = Importer.fromThisClassPath().getSymbolTableOf(fqn);
+            if(imported.isEmpty())
+                imported = Importer.fromThisClassPath().tryImplicitImport(fqn);
+
+            curTable = imported.orElse(null);
+        }
+
+        addReport(newError(call, "Can't find method '" + methodName + "' with signature " + sig));
         return null;
     }
 
-    private boolean matchInheritance(SymbolTable table, Signature sig, String methodName, boolean isStaticCall, TypeUtils tU) {
-        if(match(table, methodName, sig, isStaticCall, tU))
-            return true;
-        if(table.getSuper() != null) {
-            var fqn = table.getSuperFullyQualifiedName();
-            while(fqn != null) {
-                var newTable = Importer.fromThisClassPath().getSymbolTableOf(fqn);
-                if(newTable.isEmpty())
-                    newTable = Importer.fromThisClassPath().tryImplicitImport(fqn);
-                if(newTable.isEmpty())
-                    break;
-                if(match(newTable.get(), methodName, sig, isStaticCall, tU))
-                    return true;
-                fqn = newTable.get().getSuperFullyQualifiedName();
-            }
-        }
-        return false;
+    private boolean isCompatible(MethodSymbol method, Signature sig, boolean isStaticCall, TypeUtils tU) {
+        var candidateParams = method.signature().parameters();
+        var reqParams = sig.parameters();
+
+        if(candidateParams.size() != reqParams.size())
+            return false;
+        if(isStaticCall && !method.isStatic())
+            return false;
+
+        for(int i = 0; i < candidateParams.size(); i++)
+            if(!tU.isAssignable(candidateParams.get(i), reqParams.get(i)))
+                return false;
+
+        return true;
     }
 
-    private boolean match(SymbolTable table, String methodName, Signature sig, boolean isStaticCall, TypeUtils tU) {
-        var possibilities = table.getMethods(methodName);
-        var callParams = sig.parameters();
+    private Void mostSpecific(List<MethodSymbol> candidates, TypeUtils tU, JmmNode call) {
+        var best = candidates.getFirst();
+        var ambiguous = false;
 
-        for(var p : possibilities) {
-            var candidateParams = p.signature().parameters();
-            if(candidateParams.size() != callParams.size())
-                continue;
+        for(int i = 1; i < candidates.size(); i++) {
+            var cur = candidates.get(i);
 
-            if(isStaticCall && !p.isStatic())
-                continue;
+            var curIsBetter = isMoreSpecific(cur.signature(), best.signature(), tU); //Check if cur is more specific than best
+            var bestIsBetter = isMoreSpecific(best.signature(), cur.signature(), tU); //Check if best is more specific than cur
 
-            boolean matchFound = true;
-            for(int i = 0; i < candidateParams.size(); i++)
-                if(!tU.isAssignable(candidateParams.get(i), callParams.get(i))) {
-                    matchFound = false;
-                    break;
-                }
-
-            if(matchFound)
-                return true;
-
+            if(curIsBetter && !bestIsBetter) {  //Basically, if we found a better one
+                best = cur;
+                ambiguous = false;
+            }
+            else if(!curIsBetter && !bestIsBetter)  //The case I mentioned in findMethod (none is more specific than the other):
+                // "And if we have a(Fruit f, Apple a), a(Apple a, Fruit f). Congratulations, different signatures but an ambiguity problem, I think."
+                ambiguous = true;   //It sets us up for failure (unfortunately) unless we find a new best case
         }
-        return false;
+
+        if(ambiguous)
+            addReport(newError(call, "Ambiguous call to method" + call.get("name") + ": multiple matches found."));
+
+        return null;
+    }
+
+    private boolean isMoreSpecific(Signature sig1, Signature sig2, TypeUtils tU) {
+        var params1 = sig1.parameters();
+        var params2 = sig2.parameters();
+
+        for (int i = 0; i < params1.size(); i++)
+            // If a param of dig1 is not assignable to its sig2 counterpart, then sig1 is, probably(?), not more specific than sig2
+            if (!tU.isAssignable(params2.get(i), params1.get(i))) //Note this might work (or not) because sig1 != sig2
+                return false;
+
+        return true;
     }
 }
