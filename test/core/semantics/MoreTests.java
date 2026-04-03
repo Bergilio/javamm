@@ -683,5 +683,41 @@ public class MoreTests extends pt.up.fe.comp.test.env.JmmTestEnv {
                         return obj.nonExistent();
                     }
                 }""", true);
+        semanticsFromSnippet("""
+                package doesnt.matter;
+                import examples.inheritance.A;
+                import examples.inheritance.B;
+                
+                class SuperAccess {
+                    int calls(A a){ return 1; }
+                    int test() {
+                        B obj = new B();
+                        return calls(obj); // B should be cast to A
+                    }
+                }""", false);
+        semanticsFromSnippet("""
+                package doesnt.matter;
+                import examples.inheritance.A;
+                import examples.inheritance.B;
+                
+                class SuperAccess {
+                    int calls(B b){ return 1; }
+                    int test() {
+                        A obj = new A();
+                        return calls(obj);
+                    }
+                }""", true);
+        semanticsFromSnippet("""
+                package doesnt.matter;
+                import examples.inheritance.A;
+                import examples.inheritance.B;
+                
+                class SuperAccess {
+                    int calls(A a){ return 1; }
+                    int test() {
+                        A obj = new B();
+                        return calls(obj); // B should be cast to A
+                    }
+                }""", false);
     }
 }

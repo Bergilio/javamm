@@ -9,18 +9,12 @@ import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmClassType;
 import pt.up.fe.comp.jmm.ast.JmmNode;
-import pt.up.fe.comp2026.JavammParser;
 import pt.up.fe.comp2026.jmm.ast.JmmKind;
 import pt.up.fe.comp2026.symboltable.JmmSymbolTable;
-import pt.up.fe.specs.util.SpecsCheck;
-import pt.up.fe.specs.util.exceptions.NotImplementedException;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
 
@@ -148,7 +142,6 @@ public class TypeUtils {
         // Get name of the method
         var methodName = methodDecl.get("name");
 
-        // System.out.println("[TODO] TypeUtils.getMethodDeclSignature(): Supporting only methods with a single parameter that is an int, needs to be expanded");
         var children = methodDecl.getChildren(PARAM);
         var params = children.stream().map(this::getTypeParam).toList();
 
@@ -160,7 +153,7 @@ public class TypeUtils {
         var methodName = methodCall.get("func");
         var params = methodCall.getChildren(EXPR).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
         var sig = new Signature(methodName, params);
-        return findMethod(table, methodCall, sig, methodName);
+        return findMethod(table, sig, methodName, false);
     }
 
     public JmmType getMethodCallTypeFC(JmmNode methodCall) {    //I have to try to unify it with the one above
@@ -185,7 +178,7 @@ public class TypeUtils {
 
 
         var fTable = curTable.get();
-        return findMethod(fTable, methodCall, sig, methodName);
+        return findMethod(fTable, sig, methodName, called.asClass().staticRef());
     }
 
     public JmmType getMethodType(JmmNode methodDecl) {
@@ -421,24 +414,90 @@ public class TypeUtils {
         return st.getMethod(sig).orElseThrow().returnType().asClass();  //A constructor with arguments has to be declared, right?
     }
 
-    private JmmType findMethod(SymbolTable table, JmmNode call, Signature sig, String methodName) {
-        if (table.getMethod(sig).isEmpty() && table.getSuper() == null)
-            throw new RuntimeException("Can't find method '" + methodName + "'");
-        else if(table.getMethod(sig).isEmpty()) {
-            var fqn = table.getSuperFullyQualifiedName();
-            while(fqn != null) {
-                var newTable = Importer.fromThisClassPath().getSymbolTableOf(fqn);
-                if(newTable.isEmpty())
-                    newTable = Importer.fromThisClassPath().tryImplicitImport(fqn);
-                if(newTable.isEmpty())
-                    break;
+    //I can't guarantee your sanity bellow this point... I hate Java and its inheritance, man...
+    private JmmType findMethod(SymbolTable table, Signature sig, String methodName, boolean isStaticCall) {
+        SymbolTable curTable = table;
 
-                else if(newTable.get().getMethod(sig).isPresent())
-                    return newTable.get().getMethod(sig).get().returnType();
-                fqn = newTable.get().getSuperFullyQualifiedName();
-            }
-            throw  new RuntimeException("Can't find method '" + methodName + "'");
+        while(curTable != null) {
+            var possibilities = curTable.getMethods(methodName);
+            List<MethodSymbol> candidates = new ArrayList<>();
+
+            for(var p : possibilities)
+                if (isCompatible(p, sig, isStaticCall))
+                    candidates.add(p);
+
+            //Get the best match. Long story short, this is my attempt at handling the filthy inheritance and its ambiguity
+            //Like imagine, if we have a(Fruit f, Apple a), a(Fruit f, Fruit f) and then a(new Apple(), new Apple()), which should be called? Ah, Apple extends Fruit
+            //And if we have a(Fruit f, Apple a), a(Apple a, Fruit f). Congratulations, different signatures but an ambiguity problem, I think.
+            //Basically, we have to check which is more specific, if any
+            //Do we even have to handle this kind of inheritance problem???
+            if(!candidates.isEmpty())
+                return mostSpecific(candidates).returnType();
+
+            String fqn = curTable.getSuperFullyQualifiedName();
+            if(fqn == null)
+                break;
+
+            var imported = Importer.fromThisClassPath().getSymbolTableOf(fqn);
+            if(imported.isEmpty())
+                imported = Importer.fromThisClassPath().tryImplicitImport(fqn);
+
+            curTable = imported.orElse(null);
         }
-        return table.getMethod(sig).get().returnType();
+
+        throw new RuntimeException("Can't find method '" + methodName + "' with signature " + sig);
+    }
+
+    private boolean isCompatible(MethodSymbol method, Signature sig, boolean isStaticCall) {
+        var candidateParams = method.signature().parameters();
+        var reqParams = sig.parameters();
+
+        if(candidateParams.size() != reqParams.size())
+            return false;
+        if(isStaticCall && !method.isStatic())
+            return false;
+
+        for(int i = 0; i < candidateParams.size(); i++)
+            if(!this.isAssignable(candidateParams.get(i), reqParams.get(i)))
+                return false;
+
+        return true;
+    }
+
+    private MethodSymbol mostSpecific(List<MethodSymbol> candidates) {
+        var best = candidates.getFirst();
+        var ambiguous = false;
+
+        for(int i = 1; i < candidates.size(); i++) {
+            var cur = candidates.get(i);
+
+            var curIsBetter = isMoreSpecific(cur.signature(), best.signature()); //Check if cur is more specific than best
+            var bestIsBetter = isMoreSpecific(best.signature(), cur.signature()); //Check if best is more specific than cur
+
+            if(curIsBetter && !bestIsBetter) {  //Basically, if we found a better one
+                best = cur;
+                ambiguous = false;
+            }
+            else if(!curIsBetter && !bestIsBetter)  //The case I mentioned in findMethod (none is more specific than the other):
+                // "And if we have a(Fruit f, Apple a), a(Apple a, Fruit f). Congratulations, different signatures but an ambiguity problem, I think."
+                ambiguous = true;   //It sets us up for failure (unfortunately) unless we find a new best case
+        }
+
+        if(ambiguous)
+            throw new RuntimeException("Ambiguous method call multiple matches found.");
+
+        return best;
+    }
+
+    private boolean isMoreSpecific(Signature sig1, Signature sig2) {
+        var params1 = sig1.parameters();
+        var params2 = sig2.parameters();
+
+        for (int i = 0; i < params1.size(); i++)
+            // If a param of dig1 is not assignable to its sig2 counterpart, then sig1 is, probably(?), not more specific than sig2
+            if (!this.isAssignable(params2.get(i), params1.get(i))) //Note this might work (or not) because sig1 != sig2
+                return false;
+
+        return true;
     }
 }
