@@ -2,8 +2,6 @@ package pt.up.fe.comp2026.optimization;
 
 import org.specs.comp.ollir.Element;
 import org.specs.comp.ollir.LiteralElement;
-import org.specs.comp.ollir.type.BuiltinKind;
-import org.specs.comp.ollir.type.BuiltinType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmPrimitiveType;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
@@ -59,12 +57,28 @@ public class OptUtils {
     }
 
     public String toOllirType(JmmType type) {
-            return "." + toPrimitiveOllirType((JmmPrimitiveType) type);
-    }
+        if (type instanceof JmmPrimitiveType primitive) {
+            return switch (primitive) {
+                case INT -> ".i32";
+                case BOOLEAN -> ".bool";
+                case VOID -> ".V";
+                default -> throw new RuntimeException("Unknown primitive type: " + primitive.name());
+            };
+        }
 
-    private String toPrimitiveOllirType(JmmPrimitiveType type) {
-        System.out.println("[TODO] OptUtils.toPrimitiveOllirType(): Assumes it is always int, needs to be expanded");
-        return "i32";
+        if (type instanceof JmmArrayType array) {
+            // Recursively build the array type suffix
+            return ".array".repeat(array.dimension()) + toOllirType(array.itemType());
+        }
+
+        if (type instanceof JmmClassType classType) {
+            // Use the simple class name (last part of the fully qualified name)
+            var fqn = classType.fullyQualifiedName();
+            var simpleName = fqn.contains(".") ? fqn.substring(fqn.lastIndexOf('.') + 1) : fqn;
+            return "." + simpleName;
+        }
+
+        throw new RuntimeException("Unknown type kind: " + type);
     }
 
     public String sanitizeId(String id) {
