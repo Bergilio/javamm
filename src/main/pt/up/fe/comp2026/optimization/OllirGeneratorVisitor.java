@@ -114,22 +114,21 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
     private String visitReturn(JmmNode node, Void unused) {
 
-        System.out.println("[TODO] OllirGeneratorVisitor.visitReturn(): Assuming always returns an integer expression, needs to be expanded");
-        JmmType retType = TypeUtils.intType();
+        var retType = currentMethod.returnType();
+        var typeString = ollirTypes.toOllirType(retType);
+
+        // void return
+        if (retType.equals(TypeUtils.voidType())) {
+            return "ret" + typeString + END_STMT;
+        }
+
+        // non-void return, visit the expression
         var expr = exprVisitor.visit(node.getChild(0));
-
-
-        StringBuilder code = new StringBuilder();
-
+        var code = new StringBuilder();
         code.append(expr.getComputation());
-        code.append("ret");
-        code.append(ollirTypes.toOllirType(retType));
-        code.append(SPACE);
-
+        code.append("ret").append(typeString).append(SPACE);
         code.append(expr.getCode());
-
         code.append(END_STMT);
-
         return code.toString();
     }
 
