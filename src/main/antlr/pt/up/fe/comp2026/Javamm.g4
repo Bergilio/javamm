@@ -80,7 +80,7 @@ stmt
     | '{' stmt* '}' #Block
     | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
     | WHILE '(' expr ')' stmt #WhileStmt
-    | FOR '(' assignFor? ';' (expr)? ';' assignFor? ')' stmt #ForStmt // stmt in the for has to be Assign
+    | FOR '(' assignFor? ';' (expr)? ';' assignFor2? ')' stmt #ForStmt // stmt in the for has to be Assign
     | DO stmt WHILE '(' expr ')' ';' #DoWhileStmt // Does stmt have to be a block?
     | expr ';'  #ExprStmt
     | var=ID (arrayIndex)+ '=' expr ';' #AssignArrayElementStmt
@@ -118,5 +118,9 @@ arrayDim
     ;
 
 assignFor
+    : var=ID '=' expr
+    ;
+
+assignFor2
     : var=ID '=' expr
     ;

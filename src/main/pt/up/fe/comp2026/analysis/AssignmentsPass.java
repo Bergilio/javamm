@@ -7,6 +7,7 @@ import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp2026.ast.TypeUtils;
+import pt.up.fe.comp2026.jmm.ast.JmmAttributes;
 import pt.up.fe.comp2026.jmm.ast.JmmKind;
 
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
@@ -20,6 +21,7 @@ public class AssignmentsPass extends AnalysisVisitor {
         addVisit(JmmKind.ASSIGN_ARRAY_ELEMENT_STMT, this::visitArrayAssignStmt);
         addVisit(JmmKind.VAR_DECL, this::visitVarDecl);
         addVisit(ASSIGN_FOR, this::visitAssignStmt);
+        addVisit(ASSIGN_FOR2, this::visitAssignStmt);
     }
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
