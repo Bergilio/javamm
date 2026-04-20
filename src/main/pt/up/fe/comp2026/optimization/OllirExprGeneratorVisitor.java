@@ -45,6 +45,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         addVisit(THIS, this::visitThis);
         addVisit(BOOLEAN_LITERAL, this::visitBoolean);
         addVisit(UNARY_EXPR, this::visitUnaryExpr);
+        addVisit(CONSTRUCTOR, this::visitConstructor);
     }
 
     private OllirExprResult visitInteger(JmmNode node, Void unused) {
@@ -114,11 +115,16 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         JmmType type = types.getExprType(node);
         String ollirType = ollirTypes.toOllirType(type);
 
+        // if it's a class field, use getfield
+        if (table.getField(node.get("name")).isPresent()) {
+            var computation = new StringBuilder();
+            var temp = ollirTypes.nextTemp() + ollirType;
+            computation.append(temp).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
+                    .append("getfield(this, ").append(id).append(ollirType).append(")").append(ollirType).append(END_STMT);
+            return new OllirExprResult(temp, computation);
+        }
 
-        String code = id + ollirType;
-
-        return new OllirExprResult(code);
-
+        return new OllirExprResult(id + ollirType);
     }
 
     private OllirExprResult visitArrayAlloc(JmmNode node, Void unused) {
@@ -200,5 +206,25 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 .append(operand.getCode()).append(END_STMT);
 
         return new OllirExprResult(code, computation);
+    }
+
+    private OllirExprResult visitConstructor(JmmNode node, Void unused) {
+        var className = node.get("classType");
+        var classOllirType = "." + className;
+        var args = node.getChildren(EXPR);
+        var argsRes = args.stream().map(this::visit).toList();
+
+        var computation = new StringBuilder();
+        argsRes.forEach(ir -> computation.append(ir.getComputation()));
+
+        String temp = ollirTypes.nextTemp() + classOllirType;
+        computation.append(temp).append(SPACE).append(ASSIGN).append(classOllirType).append(SPACE)
+                .append("new(").append(className).append(")").append(classOllirType).append(END_STMT);
+
+        computation.append("invokespecial(").append(temp).append(", \"<init>\"");
+        argsRes.forEach(ir -> computation.append(", ").append(ir.getCode()));
+        computation.append(").V").append(END_STMT);
+
+        return new OllirExprResult(temp, computation);
     }
 }
