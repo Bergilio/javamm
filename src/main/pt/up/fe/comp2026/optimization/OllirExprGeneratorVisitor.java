@@ -59,6 +59,10 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
     private OllirExprResult visitBinExpr(JmmNode node, Void unused) {
         var op = node.get("op");
 
+        if (op.equals("&&") || op.equals("||")) {
+            return visitShortCircuitExpr(node, op);
+        }
+
         var lhs = visit(node.getChild(0));
         var rhs = visit(node.getChild(1));
 
@@ -82,6 +86,36 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 .append(rhs.getCode()).append(END_STMT);
 
         return new OllirExprResult(code, computation);
+    }
+
+    private OllirExprResult visitShortCircuitExpr(JmmNode node, String op) {
+        var lhs = visit(node.getChild(0));
+        var rhs = visit(node.getChild(1));
+
+        var trueLabel = ollirTypes.nextTemp(op.equals("&&") ? "andTrue" : "orTrue");
+        var endLabel = ollirTypes.nextTemp(op.equals("&&") ? "andEnd" : "orEnd");
+        var temp = ollirTypes.nextTemp() + ".bool";
+
+        var computation = new StringBuilder();
+        computation.append(lhs.getComputation());
+        computation.append("if (").append(lhs.getCode()).append(") goto ").append(trueLabel).append(END_STMT);
+
+        if (op.equals("&&")) {
+            computation.append(temp).append(" :=.bool 0.bool").append(END_STMT);
+            computation.append("goto ").append(endLabel).append(END_STMT);
+            computation.append(trueLabel).append(":\n");
+            computation.append(rhs.getComputation());
+            computation.append(temp).append(" :=.bool ").append(rhs.getCode()).append(END_STMT);
+        } else {
+            computation.append(rhs.getComputation());
+            computation.append(temp).append(" :=.bool ").append(rhs.getCode()).append(END_STMT);
+            computation.append("goto ").append(endLabel).append(END_STMT);
+            computation.append(trueLabel).append(":\n");
+            computation.append(temp).append(" :=.bool 1.bool").append(END_STMT);
+        }
+        computation.append(endLabel).append(":\n");
+
+        return new OllirExprResult(temp, computation);
     }
 
     private OllirExprResult visitArrayAccess(JmmNode node, Void unused) {
