@@ -233,6 +233,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         code.append(ollirTypes.toOllirType(currentMethod.returnType()));
         code.append(L_BRACKET);
 
+        /*
         // local variable declarations
         for (var local : currentMethod.localVariables()) {
             code.append(SPACE).append(SPACE)
@@ -240,7 +241,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                     .append(ollirTypes.toOllirType(local.type()))
                     .append(END_STMT);
         }
-
+        */
         // statements
         for (var stmt : node.getChildren(STMT)) {
             var stmtCode = visit(stmt);
