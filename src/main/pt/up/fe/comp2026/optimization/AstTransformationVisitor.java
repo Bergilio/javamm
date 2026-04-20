@@ -17,11 +17,15 @@ public class AstTransformationVisitor extends AJmmVisitor<Void, Void> {
         addVisit(JmmKind.DO_WHILE_STMT, this::visitDoWhile);
         addVisit(JmmKind.PARENTHESIS, this::visitParenthesis);
         addVisit(JmmKind.METHOD_DECL, this::visitMethodDecl);
+        setDefaultVisit(this::visitDefault);
         //addVisit(JmmKind.IF_STMT, this::visitIfStmt);
         //addVisit(JmmKind.METHOD_DECL, this::visitMethodDeadCode);
         //addVisit(JmmKind.WHILE_STMT, this::visitImpossibleWhile);
     }
 
+    private Void visitDefault(JmmNode node, Void unused) {
+        return null;
+    }
     //Transform a for in a while loop
     private Void visitFor(JmmNode forStmt, Void unused) {
         var assignFor = forStmt.getChildren(JmmKind.ASSIGN_FOR);
