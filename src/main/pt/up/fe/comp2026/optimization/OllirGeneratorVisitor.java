@@ -60,7 +60,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
     }
 
     private String visitParam(JmmNode param, Void unused) {
-        return param.get("name") + ollirTypes.toOllirType(param.getObject("typeNode", JmmNode.class));
+        return ollirTypes.sanitizeId(param.get("name")) + ollirTypes.toOllirType(param.getObject("typeNode", JmmNode.class));
     }
 
     private String visitPackageDecl(JmmNode packageDecl, Void unused) {

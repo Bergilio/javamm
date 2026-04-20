@@ -167,7 +167,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
             code = ollirTypes.nextTemp() + ollirTypes.toOllirType(methodType);
             computation.append(code).append(SPACE).append(ASSIGN).append(ollirTypes.toOllirType(methodType)).append(SPACE);
         }
-        computation.append("invokevirtual(").append(accessedRes.getCode()).append(", \"").append(node.get("func")).append("\"");
+        computation.append("invokevirtual(").append(accessedRes.getCode()).append(", \"").append(ollirTypes.sanitizeId(node.get("func"))).append("\"");
         argsRes.forEach(ir -> computation.append(", ").append(ir.getCode()));
         computation.append(')').append(ollirTypes.toOllirType(methodType)).append(END_STMT);
 
@@ -175,6 +175,6 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
     }
 
     private OllirExprResult visitThis(JmmNode node, Void unused) {
-        return new OllirExprResult("this");
+        return new OllirExprResult("this" + ollirTypes.toOllirType(types.getExprType(node)));
     }
 }
