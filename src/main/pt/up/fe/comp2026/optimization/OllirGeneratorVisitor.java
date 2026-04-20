@@ -43,6 +43,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
     protected void buildVisitor() {
         addVisit(PROGRAM, this::visitProgram);
         addVisit(PACKAGE_DECL, this::visitPackageDecl);
+        addVisit(IMPORT_DECL, this::visitImportDecl);
         addVisit(CLASS_DECL, this::visitClass);
         addVisit(PARAM, this::visitParam);
         addVisit(METHOD_DECL, this::visitMethodDecl);
@@ -65,6 +66,10 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
     private String visitPackageDecl(JmmNode packageDecl, Void unused) {
         return "package " + String.join(".", packageDecl.getObjectAsList("path", String.class)) + ";\n";
+    }
+
+    private String visitImportDecl(JmmNode node, Void unused) {
+        return "import " + String.join(".", node.getObjectAsList("path", String.class)) + ";\n";
     }
 
     private String visitAssignStmt(JmmNode node, Void unused) {
@@ -280,7 +285,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         }
         code.append(NL);
 
-        code.append(buildConstructor());
+        code.append(buildConstructor(node));
         code.append(NL);
 
         for (var child : node.getChildren(METHOD_DECL)) {
@@ -291,12 +296,27 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         return code.toString();
     }
 
-    private String buildConstructor() {
-        return """
-                .construct %s().V {
-                    invokespecial(this, "<init>").V;
-                }
-                """.formatted(table.getClassName());
+    private String buildConstructor(JmmNode classNode) {
+        var sb = new StringBuilder();
+        sb.append(".construct ").append(table.getClassName()).append("().V {\n");
+        sb.append("    invokespecial(this, \"<init>\").V;\n");
+
+        for (var varDecl : classNode.getChildren(VAR_DECL)) {
+            if (varDecl.getChildren().size() <= 1) continue;
+            var fieldName = varDecl.get("name");
+            var fieldOpt = table.getField(fieldName);
+            if (fieldOpt.isEmpty()) continue;
+            var fieldType = ollirTypes.toOllirType(fieldOpt.get().type());
+            var initExpr = varDecl.getChild(1);
+            var exprResult = exprVisitor.visit(initExpr);
+            sb.append(exprResult.getComputation());
+            sb.append("    putfield(this, ")
+                    .append(ollirTypes.sanitizeId(fieldName)).append(fieldType).append(", ")
+                    .append(exprResult.getCode()).append(").V;\n");
+        }
+
+        sb.append("}\n");
+        return sb.toString();
     }
 
     private String visitProgram(JmmNode node, Void unused) {
