@@ -15,9 +15,11 @@ public class AstTransformationVisitor extends AJmmVisitor<Void, Void> {
     protected void buildVisitor() {
         addVisit(JmmKind.FOR_STMT, this::visitFor);
         addVisit(JmmKind.DO_WHILE_STMT, this::visitDoWhile);
-        addVisit(JmmKind.IF_STMT, this::visitIfStmt);
-        addVisit(JmmKind.METHOD_DECL, this::visitMethodDeadCode);
-        addVisit(JmmKind.WHILE_STMT, this::visitImpossibleWhile);
+        addVisit(JmmKind.PARENTHESIS, this::visitParenthesis);
+        addVisit(JmmKind.METHOD_DECL, this::visitMethodDecl);
+        //addVisit(JmmKind.IF_STMT, this::visitIfStmt);
+        //addVisit(JmmKind.METHOD_DECL, this::visitMethodDeadCode);
+        //addVisit(JmmKind.WHILE_STMT, this::visitImpossibleWhile);
     }
 
     //Transform a for in a while loop
@@ -77,10 +79,25 @@ public class AstTransformationVisitor extends AJmmVisitor<Void, Void> {
         return null;
     }
 
+    private Void visitParenthesis(JmmNode paren, Void unused) {
+        var child = paren.getChild(0);
+        child.removeParent();
+        paren.replace(child);
+        return null;
+    }
+
+    private Void visitMethodDecl(JmmNode methodDecl, Void unused) {
+        var isRet = methodDecl.getChildren().getLast().isInstance(JmmKind.RETURN_STMT);
+        if(!isRet)
+            methodDecl.add(new JmmNodeImpl(JmmKind.RETURN_STMT));
+        return null;
+    }
+
     public boolean madeChanges() {
         return changed;
     }
 
+    /*
     //BELLOW, WE WILL HAVE IFs AND DEAD CODE OPTIMIZATIONS. Not sure if we would need the "-o" flag for these.
 
     //Remove statically solved if stmts
@@ -147,4 +164,5 @@ public class AstTransformationVisitor extends AJmmVisitor<Void, Void> {
 
         return null;
     }
+     */
 }
