@@ -1,14 +1,12 @@
 package pt.up.fe.comp2026.optimization;
 
-import pt.up.fe.comp.jmm.ast.AJmmVisitor;
-import pt.up.fe.comp.jmm.ast.JmmNode;
-import pt.up.fe.comp.jmm.ast.JmmNodeImpl;
+import pt.up.fe.comp.jmm.ast.*;
 import pt.up.fe.comp2026.jmm.ast.JmmKind;
 
 import java.util.Collections;
 import java.util.List;
 
-public class AstTransformationVisitor extends AJmmVisitor<Void, Void> {
+public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
     private boolean changed = false;
 
     @Override
@@ -17,20 +15,22 @@ public class AstTransformationVisitor extends AJmmVisitor<Void, Void> {
         addVisit(JmmKind.DO_WHILE_STMT, this::visitDoWhile);
         addVisit(JmmKind.PARENTHESIS, this::visitParenthesis);
         addVisit(JmmKind.METHOD_DECL, this::visitMethodDecl);
-        setDefaultVisit(this::visitDefault);
+        setDefaultVisit(this::defaultVisit);
         //addVisit(JmmKind.IF_STMT, this::visitIfStmt);
         //addVisit(JmmKind.METHOD_DECL, this::visitMethodDeadCode);
         //addVisit(JmmKind.WHILE_STMT, this::visitImpossibleWhile);
     }
 
-    private Void visitDefault(JmmNode node, Void unused) {
+    private Void defaultVisit(JmmNode node, Void unused) {
         return null;
     }
+
     //Transform a for in a while loop
     private Void visitFor(JmmNode forStmt, Void unused) {
         var assignFor = forStmt.getChildren(JmmKind.ASSIGN_FOR);
         if (!assignFor.isEmpty()) {
             var expr = assignFor.getFirst().getChild(0);
+            expr.removeParent();
             var id = assignFor.getFirst().get("var");
             var newNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
             newNode.put("var", id);
@@ -42,20 +42,39 @@ public class AstTransformationVisitor extends AJmmVisitor<Void, Void> {
 
         var stmtsInScope = forStmt.getChildren(JmmKind.STMT).getFirst();
         var eval = forStmt.getChildren(JmmKind.EXPR);
-        var assignFor2 = forStmt.getChildren(JmmKind.ASSIGN_FOR);
+        var assignFor2 = forStmt.getChildren(JmmKind.ASSIGN_FOR2);
         var newNode = new JmmNodeImpl(JmmKind.WHILE_STMT);
-        if(!eval.isEmpty())
-            newNode.add(eval.getFirst());
+        if(!eval.isEmpty()) {
+            var evalExpr = eval.getFirst();
+            evalExpr.removeParent();
+            newNode.add(evalExpr);
+        }
         else {
             var newEval = new JmmNodeImpl(JmmKind.BOOLEAN_LITERAL);
             newEval.put("value", "true");
             newNode.add(newEval);
         }
-        if(!assignFor2.isEmpty())
-            stmtsInScope.add(assignFor2.getFirst());
+
+        JmmNode block;
+
+        if(!stmtsInScope.isInstance(JmmKind.BLOCK)) {   //Single statement
+            block = new JmmNodeImpl(JmmKind.BLOCK);
+            block.add(stmtsInScope);
+        }
+        else
+            block = stmtsInScope;
+
+        if(!assignFor2.isEmpty()) {
+            var temp = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
+            temp.put("var", assignFor2.getFirst().get("var"));
+            var expr = assignFor2.getFirst().getChild(0);
+            expr.removeParent();
+            temp.add(expr);
+            block.add(temp);
+        }
 
         changed = true;
-        newNode.add(stmtsInScope);
+        newNode.add(block);
         forStmt.replace(newNode);
         return null;
     }
@@ -63,7 +82,9 @@ public class AstTransformationVisitor extends AJmmVisitor<Void, Void> {
     //Transform a do while in a while loop
     private Void visitDoWhile(JmmNode doWhileStmt, Void unused) {
         var stmt = doWhileStmt.getChild(0);
+        stmt.removeParent();
         var expr = doWhileStmt.getChild(1);
+        expr.removeParent();
         List<JmmNode> stmts;
 
         if(stmt.isInstance(JmmKind.BLOCK))
@@ -99,6 +120,10 @@ public class AstTransformationVisitor extends AJmmVisitor<Void, Void> {
 
     public boolean madeChanges() {
         return changed;
+    }
+
+    public void reset() {
+        changed = false;
     }
 
     /*

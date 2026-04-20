@@ -38,26 +38,26 @@ public class Launcher {
 
 
 
-//        // Semantic Analysis stage
-//        JmmAnalysisImpl sema = new JmmAnalysisImpl();
-//        JmmSemanticsResult semanticsResult = sema.semanticAnalysis(parserResult);
-//
-//        System.out.println("Annotated AST:");
-//        System.out.println(semanticsResult.getRootNode().toTree());
-//
-//        semanticsResult.throwIfErrors();
-//
-//        // Optimization stage
-//        JmmOptimizationImpl ollirGen = new JmmOptimizationImpl();
-//
-//        // AST-based optimizations
-//        if(semanticsResult.config().get("optimize") != null && semanticsResult.config().get("optimize").equals("true")){
-//            semanticsResult = ollirGen.optimize(semanticsResult);
-//
-//            System.out.println("Optimized AST:");
-//            System.out.println("AST: " + semanticsResult.getRootNode().toTree());
-//        }
-//
+        // Semantic Analysis stage
+        JmmAnalysisImpl sema = new JmmAnalysisImpl();
+        JmmSemanticsResult semanticsResult = sema.semanticAnalysis(parserResult);
+
+        //System.out.println("Annotated AST:");
+        //System.out.println(semanticsResult.getRootNode().toTree());
+
+        semanticsResult.throwIfErrors();
+
+        // Optimization stage
+        JmmOptimizationImpl ollirGen = new JmmOptimizationImpl();
+
+        // AST-based optimizations
+        //if(semanticsResult.config().get("optimize") != null && semanticsResult.config().get("optimize").equals("true")){
+        //    semanticsResult = ollirGen.optimize(semanticsResult);
+            semanticsResult = ollirGen.transformAst(semanticsResult);
+            System.out.println("Optimized AST:");
+            System.out.println("AST: " + semanticsResult.getRootNode().toTree());
+        //}
+
 //        OllirResult ollirResult = ollirGen.toOllir(semanticsResult);
 //        ollirResult.throwIfErrors();
 //
