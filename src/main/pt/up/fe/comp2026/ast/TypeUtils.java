@@ -326,7 +326,7 @@ public class TypeUtils {
         return destClass.isAssignableFrom(sourceClass);
     }
 
-    private JmmType arrayAccessType(JmmNode arrayAccessExpr) {
+    public JmmType arrayAccessType(JmmNode arrayAccessExpr) {
         var arrayID = arrayAccessExpr.getChild(0); //Basically, the array identifier/call, whatever.
         var arrayType = getExprType(arrayID);
         if(!arrayType.isArray())

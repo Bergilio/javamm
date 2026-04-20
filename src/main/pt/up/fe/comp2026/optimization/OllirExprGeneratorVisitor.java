@@ -40,6 +40,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         addVisit(VAR_REF_EXPR, this::visitVarRef);
         addVisit(BINARY_EXPR, this::visitBinExpr);
         addVisit(INTEGER_LITERAL, this::visitInteger);
+        addVisit(ARRAY_ACCESS, this::visitArrayAccess);
     }
 
     private OllirExprResult visitInteger(JmmNode node, Void unused) {
@@ -78,8 +79,33 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         return new OllirExprResult(code, computation);
     }
 
-    private OllirExprResult visitVarRef(JmmNode node, Void unused) {
+    private OllirExprResult visitArrayAccess(JmmNode node, Void unused) {
+        var arrayExpr = visit(node.getChild(0));
 
+        var accessType = types.arrayAccessType(node);
+        var accessResOllirType = ollirTypes.toOllirType(accessType);
+
+
+        var indices = node.getChildren(ARRAY_INDEX);
+        var indexResults = indices.stream()
+                .map(idx -> this.visit(idx.getChild(0)))
+                .toList();
+
+        var computation = new StringBuilder();
+        var code = new String();
+
+        computation.append(arrayExpr.getComputation());
+        indexResults.forEach(ir -> computation.append(ir.getComputation()));
+
+        code = ollirTypes.nextTemp() + accessResOllirType;
+        computation.append(code).append(SPACE).append(ASSIGN).append(accessResOllirType).append(SPACE).append(arrayExpr.getCode());
+        indexResults.forEach(ir -> computation.append('[').append(ir.getCode()).append(']'));
+        computation.append(accessResOllirType).append(END_STMT);
+
+        return new OllirExprResult(code, computation);
+    }
+
+    private OllirExprResult visitVarRef(JmmNode node, Void unused) {
         var id = ollirTypes.sanitizeId(node.get("name"));
         JmmType type = types.getExprType(node);
         String ollirType = ollirTypes.toOllirType(type);
@@ -90,6 +116,4 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         return new OllirExprResult(code);
 
     }
-
-
 }
