@@ -27,7 +27,7 @@ public class JmmOptimizationImpl implements JmmOptimization {
     public JmmSemanticsResult transformAst(JmmSemanticsResult semanticsResult) {
         // To add the flag for the more advanced optimizations
 
-        var transformer = new AstTransformationVisitor();
+        var transformer = new AstTransformationVisitor(semanticsResult.getSymbolTable());
         transformer.visit(semanticsResult.getRootNode());
         return semanticsResult;
     }
