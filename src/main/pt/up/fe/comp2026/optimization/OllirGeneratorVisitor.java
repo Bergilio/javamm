@@ -198,7 +198,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
     private String visitExprStmt(JmmNode node, Void unused) {
         var expr = exprVisitor.visit(node.getChild(0));
-        return expr.getComputation() + expr.getCode();
+        return expr.getComputation();
     }
 
     private String visitBlock(JmmNode node, Void unused) {
@@ -298,8 +298,12 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
     private String buildConstructor(JmmNode classNode) {
         var sb = new StringBuilder();
-        sb.append(".construct ").append(table.getClassName()).append("().V {\n");
-        sb.append("    invokespecial(this, \"<init>\").V;\n");
+        var superClass = table.getSuperFullyQualifiedName();
+        if(superClass.equals("Object"))
+            superClass = "java.lang.Object";
+
+        sb.append(".construct ").append("\"<init>\"").append("().V {\n");
+        sb.append("    invokespecial(this.").append("\"").append(superClass).append("\"").append(", \"<init>\").V;\n");
 
         for (var varDecl : classNode.getChildren(VAR_DECL)) {
             if (varDecl.getChildren().size() <= 1) continue;

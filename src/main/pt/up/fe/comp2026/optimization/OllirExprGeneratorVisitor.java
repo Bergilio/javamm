@@ -198,6 +198,9 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         args.removeFirst();
         var methodType = types.getMethodCallTypeFC(node);
 
+        var called = TypeUtils.with(table).getExprType(accessed);
+        var isStaticRef = called.asClass().staticRef();
+
         var accessedRes = visit(accessed);
         var argsRes = args.stream().map(this::visit).toList();
 
@@ -209,7 +212,10 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
             code = ollirTypes.nextTemp() + ollirTypes.toOllirType(methodType);
             computation.append(code).append(SPACE).append(ASSIGN).append(ollirTypes.toOllirType(methodType)).append(SPACE);
         }
-        computation.append("invokevirtual(").append(accessedRes.getCode()).append(", \"").append(ollirTypes.sanitizeId(node.get("func"))).append("\"");
+
+        var invokeType = isStaticRef ? "invokestatic(" + called.asClass().name() : "invokevirtual(" + accessedRes.getCode();
+
+        computation.append(invokeType).append(", \"").append(ollirTypes.sanitizeId(node.get("func"))).append("\"");
         argsRes.forEach(ir -> computation.append(", ").append(ir.getCode()));
         computation.append(')').append(ollirTypes.toOllirType(methodType)).append(END_STMT);
 
