@@ -167,10 +167,9 @@ public class TypeUtils {
         Optional<SymbolTable> curTable = Optional.empty();
         if(called.asClass().fullyQualifiedName().equals(table.getFullyQualifiedName()))
             curTable = Optional.of(table);
-        else
-        if(Importer.fromThisClassPath().isImplicitImport(called.asClass().fullyQualifiedName()))
+        else if(Importer.fromThisClassPath().isImplicitImport(called.asClass().fullyQualifiedName()))
             curTable = Importer.fromThisClassPath().tryImplicitImport(called.asClass().fullyQualifiedName());
-        else if(Importer.fromThisClassPath().inClassPath(called.asClass().fullyQualifiedName()))
+        else if(Importer.fromThisClassPath().inClassPath(called.asClass().fullyQualifiedName()) || table.getImports().contains(called.asClass().fullyQualifiedName()))
             curTable = Importer.fromThisClassPath().getSymbolTableOf(called.asClass().fullyQualifiedName());
 
         if(curTable.isEmpty())
@@ -288,6 +287,8 @@ public class TypeUtils {
 
         if(destinationType.equals(curType) || sourceType.equals(curType)) {
             var destFQN = destinationType.asClass().fullyQualifiedName();
+            if(destFQN.equals("java.lang.Object"))
+                destFQN = "Object";
             var sourceFQN = sourceType.asClass().fullyQualifiedName();
             if(sourceFQN.equals(destFQN))
                 return true;
