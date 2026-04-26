@@ -1,0 +1,11 @@
+package test.core.ollir.calls.jmm;
+
+class LocalInstanceCallVoid {
+
+    public void method() {
+        this.helper();
+    }
+
+    public void helper() {
+    }
+}

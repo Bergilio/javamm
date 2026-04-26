@@ -52,6 +52,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         addVisit(BOOLEAN_LITERAL, this::visitBoolean);
         addVisit(UNARY_EXPR, this::visitUnaryExpr);
         addVisit(CONSTRUCTOR, this::visitConstructor);
+        addVisit(FIELD_ACCESS, this::visitFieldAccess);
     }
 
     private OllirExprResult visitInteger(JmmNode node, Void unused) {
@@ -274,6 +275,22 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         argsRes.forEach(ir -> computation.append(", ").append(ir.getCode()));
         computation.append(").V").append(END_STMT);
 
+        return new OllirExprResult(temp, computation);
+    }
+
+    private OllirExprResult visitFieldAccess(JmmNode node, Void unused) {
+        var obj = visit(node.getChild(0));
+        var fieldName = node.get("name");
+        JmmType type = types.getExprType(node);
+        String ollirType = ollirTypes.toOllirType(type);
+
+        var computation = new StringBuilder();
+        computation.append(obj.getComputation());
+        var temp = ollirTypes.nextTemp() + ollirType;
+        computation.append(temp).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
+                .append("getfield(").append(obj.getCode()).append(", ")
+                .append(ollirTypes.sanitizeId(fieldName)).append(ollirType).append(")")
+                .append(ollirType).append(END_STMT);
         return new OllirExprResult(temp, computation);
     }
 }

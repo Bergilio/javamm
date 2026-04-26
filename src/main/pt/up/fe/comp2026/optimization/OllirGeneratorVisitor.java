@@ -268,7 +268,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         for (var stmt : node.getChildren(STMT)) {
             var stmtCode = visit(stmt);
             if (stmtCode != null && !stmtCode.isEmpty()) {
-                code.append(TAB).append(stmtCode);
+                code.append(stmtCode);
             }
         }
 

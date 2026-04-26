@@ -1,0 +1,18 @@
+package test.core.ollir.statements.jmm;
+
+class IfInsideWhile {
+
+    public int method(int n) {
+        int i;
+        int sum;
+        i = 0;
+        sum = 0;
+        while (i < n) {
+            if (i < 5) {
+                sum = sum + i;
+            }
+            i = i + 1;
+        }
+        return sum;
+    }
+}

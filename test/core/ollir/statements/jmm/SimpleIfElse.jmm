@@ -1,0 +1,14 @@
+package test.core.ollir.statements.jmm;
+
+class SimpleIfElse {
+
+    public int method(boolean cond) {
+        int x;
+        if (cond) {
+            x = 1;
+        } else {
+            x = 2;
+        }
+        return x;
+    }
+}

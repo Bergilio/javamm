@@ -1,0 +1,22 @@
+package test.core.ollir.statements.jmm;
+
+class WhileCondition {
+
+    public int method() {
+        int i;
+        i = 0;
+        while (i < 5) {
+            i = i + 1;
+        }
+        return i;
+    }
+
+    public int methodNeverEnters() {
+        int i;
+        i = 10;
+        while (i < 5) {
+            i = i + 1;
+        }
+        return i;
+    }
+}

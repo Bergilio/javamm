@@ -28,7 +28,6 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
         addVisit(JmmKind.FOR_STMT, this::visitFor);
         addVisit(JmmKind.DO_WHILE_STMT, this::visitDoWhile);
         addVisit(JmmKind.PARENTHESIS, this::visitParenthesis);
-        addVisit(JmmKind.BLOCK, this::visitBlock);
         addVisit(JmmKind.METHOD_DECL, this::visitMethodDecl);
         addVisit(JmmKind.IMPLICIT_THIS_FUNCTION_CALL, this::visitImplicitThisCall);
         addVisit(JmmKind.FUNCTION_CALL, this::visitFunctionCall);
@@ -84,7 +83,6 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
             var updateNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
             updateNode.put("var", updateInit.get("var"));
             updateNode.add(updateExpr);
-
             whileBody.add(updateNode);
         }
 
@@ -120,22 +118,6 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
         var child = paren.getChild(0);
         child.removeParent();
         paren.replace(child);
-        return null;
-    }
-
-    private Void visitBlock(JmmNode block, Void unused) {
-        if(block.getChildren().isEmpty()) {
-            block.getParent().removeChild(block);
-            block.removeParent();
-            return null;
-        }
-        var children = block.getChildren();
-        for(var child : children) {
-            child.removeParent();
-            block.getParent().add(child, block.getIndexOfSelf());
-        }
-        block.getParent().removeChild(block);
-        block.removeParent();
         return null;
     }
 
@@ -249,7 +231,7 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
         var method = findMethod(fTable, sig, methodName, tU);
         if(method != null && method.isStatic()) {
             var newNode = new JmmNodeImpl(JmmKind.VAR_REF_EXPR);
-            newNode.put("name", curTable.getClass().getCanonicalName());
+            newNode.put("name", curTable.get().getClassName());
             target.replace(newNode);
             target.removeParent();
         }

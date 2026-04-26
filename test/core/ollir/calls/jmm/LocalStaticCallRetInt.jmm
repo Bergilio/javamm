@@ -1,0 +1,12 @@
+package test.core.ollir.calls.jmm;
+
+class LocalStaticCallRetInt {
+
+    public static int method() {
+        return helper();
+    }
+
+    public static int helper() {
+        return 42;
+    }
+}

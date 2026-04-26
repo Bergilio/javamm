@@ -1,0 +1,110 @@
+package test.core.ollir.calls.jmm;
+
+import util.io;
+
+class CallEdgeCases {
+
+    public int addOne(int x) {
+        return x + 1;
+    }
+
+    public boolean isPositive(int x) {
+        return x < 0;
+    }
+
+    public int identity(int x) {
+        return x;
+    }
+
+    public void doNothing() {
+    }
+
+    public int callResultInExpr() {
+        return this.addOne(5) + 1;
+    }
+
+    public int callAsArgument() {
+        return this.addOne(this.addOne(1));
+    }
+
+    public int recursiveCall(int n) {
+        if (n < 1) {
+            return 0;
+        }
+        return this.recursiveCall(n - 1) + 1;
+    }
+
+    public int multipleCalls() {
+        int a;
+        int b;
+        int c;
+        a = this.addOne(1);
+        b = this.addOne(2);
+        c = this.addOne(3);
+        return a + b + c;
+    }
+
+    public void voidCallAsStatement() {
+        this.doNothing();
+    }
+
+    public boolean callReturningBool() {
+        return this.isPositive(5);
+    }
+
+    public int staticCallResultInExpr() {
+        return io.read() + 1;
+    }
+
+    public int callWithBooleanArg(boolean flag) {
+        return this.consumeBool(flag);
+    }
+
+    public int consumeBool(boolean b) {
+        if (b) {
+            return 1;
+        }
+        return 0;
+    }
+
+    public int[] getArray(int size) {
+        int[] arr;
+        arr = new int[size];
+        return arr;
+    }
+
+    public int callWithArrayArg(int[] arr) {
+        return arr.length;
+    }
+
+    public int testCallWithArray() {
+        int[] arr;
+        arr = new int[5];
+        return this.callWithArrayArg(arr);
+    }
+
+    public int testCallReturningArray() {
+        int[] arr;
+        arr = this.getArray(3);
+        return arr.length;
+    }
+
+    public int testCallWithMixedArgs(int a, boolean b) {
+        return this.mixedArgs(a, b);
+    }
+
+    public int mixedArgs(int x, boolean flag) {
+        if (flag) {
+            return x;
+        }
+        return 0;
+    }
+
+    public CallEdgeCases getObj() {
+        return this;
+    }
+
+    public int testChainedCall() {
+        return this.getObj().addOne(1);
+    }
+}
