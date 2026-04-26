@@ -116,4 +116,21 @@ public class StatementsOllirTest extends OllirTestEnv {
         assertTrue("Should have at least 2 assignments inside block", assigns.size() >= 2);
         assertInstExists(ReturnInstruction.class, method);
     }
+
+    @Test
+    public void testWhileConditionExitsWhenFalse() {
+        var method = toOllir("WhileCondition.jmm", "method");
+
+        assertInstExists(CondBranchInstruction.class, method);
+        assertAtLeast(GotoInstruction.class, 1, method);
+        assertInstExists(ReturnInstruction.class, method);
+    }
+
+    @Test
+    public void testWhileNeverEnters() {
+        var method = toOllir("WhileCondition.jmm", "methodNeverEnters");
+
+        assertInstExists(CondBranchInstruction.class, method);
+        assertInstExists(ReturnInstruction.class, method);
+    }
 }

@@ -1,0 +1,19 @@
+package test.core.ollir.entities.jmm;
+
+import util.io;
+
+class VoidFunctionCall {
+
+    public void method() {
+        VoidFunctionCall obj;
+        obj = new VoidFunctionCall();
+        obj.doSomething();
+    }
+
+    public void doSomething() {
+    }
+
+    public void staticVoidCall() {
+        io.print(1);
+    }
+}

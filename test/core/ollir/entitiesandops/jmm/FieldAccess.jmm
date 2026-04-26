@@ -1,0 +1,29 @@
+package test.core.ollir.entities.jmm;
+
+class FieldAccess {
+
+    int value;
+
+    public int getFieldViaThis() {
+        return this.value;
+    }
+
+    public int getFieldViaObj() {
+        FieldAccess obj;
+        obj = new FieldAccess();
+        return obj.value;
+    }
+
+    public void setField(int v) {
+        value = v;
+    }
+
+    public int fieldInExpression() {
+        return value + 1;
+    }
+
+    public int fieldAssignFromExpression() {
+        value = value + 1;
+        return value;
+    }
+}
