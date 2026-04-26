@@ -26,6 +26,7 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
         addVisit(JmmKind.FOR_STMT, this::visitFor);
         addVisit(JmmKind.DO_WHILE_STMT, this::visitDoWhile);
         addVisit(JmmKind.PARENTHESIS, this::visitParenthesis);
+        addVisit(JmmKind.BLOCK, this::visitBlock);
         addVisit(JmmKind.METHOD_DECL, this::visitMethodDecl);
         addVisit(JmmKind.IMPLICIT_THIS_FUNCTION_CALL, this::visitImplicitThisCall);
         addVisit(JmmKind.FUNCTION_CALL, this::visitFunctionCall);
@@ -51,7 +52,7 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
             parent.add(newNode, index);
         }
 
-        var stmtsInScope = forStmt.getChildren(JmmKind.STMT).getFirst();
+        var stmtsInScope = forStmt.getChildren(JmmKind.STMT);
         var eval = forStmt.getChildren(JmmKind.EXPR);
         var assignFor2 = forStmt.getChildren(JmmKind.ASSIGN_FOR2);
         var newNode = new JmmNodeImpl(JmmKind.WHILE_STMT);
@@ -66,25 +67,18 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
             newNode.add(newEval);
         }
 
-        JmmNode block;
-
-        if(!stmtsInScope.isInstance(JmmKind.BLOCK)) {   //Single statement
-            block = new JmmNodeImpl(JmmKind.BLOCK);
-            block.add(stmtsInScope);
-        }
-        else
-            block = stmtsInScope;
-
         if(!assignFor2.isEmpty()) {
             var temp = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
             temp.put("var", assignFor2.getFirst().get("var"));
             var expr = assignFor2.getFirst().getChild(0);
             expr.removeParent();
             temp.add(expr);
-            block.add(temp);
         }
 
-        newNode.add(block);
+        for(var stmt : stmtsInScope) {
+            stmt.removeParent();
+            newNode.add(stmt);
+        }
         forStmt.replace(newNode);
         return null;
     }
@@ -95,12 +89,7 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
         stmt.removeParent();
         var expr = doWhileStmt.getChild(1);
         expr.removeParent();
-        List<JmmNode> stmts;
-
-        if(stmt.isInstance(JmmKind.BLOCK))
-            stmts = stmt.getChildren();
-        else
-            stmts = Collections.singletonList(stmt);
+        List<JmmNode> stmts = stmt.getChildren();
 
         var parent = doWhileStmt.getParent();
         for(var st : stmts)
@@ -114,9 +103,29 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
     }
 
     private Void visitParenthesis(JmmNode paren, Void unused) {
+        if(paren.getChildren().isEmpty()) {
+            paren.removeParent();
+            return null;
+        }
         var child = paren.getChild(0);
         child.removeParent();
         paren.replace(child);
+        return null;
+    }
+
+    private Void visitBlock(JmmNode block, Void unused) {
+        if(block.getChildren().isEmpty()) {
+            block.getParent().removeChild(block);
+            block.removeParent();
+            return null;
+        }
+        var children = block.getChildren();
+        for(var child : children) {
+            child.removeParent();
+            block.getParent().add(child, block.getIndexOfSelf());
+        }
+        block.getParent().removeChild(block);
+        block.removeParent();
         return null;
     }
 
@@ -222,8 +231,6 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
         var reqParams = sig.parameters();
 
         if(candidateParams.size() != reqParams.size())
-            return false;
-        if(false && !method.isStatic())
             return false;
 
         for(int i = 0; i < candidateParams.size(); i++)

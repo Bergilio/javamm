@@ -26,9 +26,19 @@ public class JmmOptimizationImpl implements JmmOptimization {
     @Override
     public JmmSemanticsResult transformAst(JmmSemanticsResult semanticsResult) {
         // To add the flag for the more advanced optimizations
-
         var transformer = new AstTransformationVisitor(semanticsResult.getSymbolTable());
         transformer.visit(semanticsResult.getRootNode());
+
+        if(Boolean.parseBoolean(semanticsResult.config().getOrDefault("optimize", "false"))){
+            while(true) {
+                var constProp = new AstConstantPropagationVisitor(semanticsResult.getSymbolTable());
+                var constFold = new AstConstantFoldingVisitor();
+                constFold.visit(semanticsResult.getRootNode());
+                constProp.visit(semanticsResult.getRootNode());
+                if(!constFold.madeChanges() && !constProp.madeChanges())
+                    break;
+            }
+        }
         return semanticsResult;
     }
 

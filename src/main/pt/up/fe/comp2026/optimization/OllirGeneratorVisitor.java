@@ -53,7 +53,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(IF_STMT, this::visitIfStmt);
         addVisit(WHILE_STMT, this::visitWhileStmt);
         addVisit(EXPR_STMT, this::visitExprStmt);
-        addVisit(BLOCK, this::visitBlock);
+        //addVisit(BLOCK, this::visitBlock);
     }
 
     private String nextLabel(String prefix) {
@@ -200,13 +200,13 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         var expr = exprVisitor.visit(node.getChild(0));
         return expr.getComputation();
     }
-
+/*
     private String visitBlock(JmmNode node, Void unused) {
         return node.getChildren(STMT).stream()
                 .map(this::visit)
                 .collect(Collectors.joining());
     }
-
+*/
     private String visitMethodDecl(JmmNode node, Void unused) {
         var methodOpt = table.getMethod(TypeUtils.with(table).getMethodDeclSignature(node));
         if (methodOpt.isEmpty()) return "";
