@@ -1,0 +1,12 @@
+package test.core.ollir.calls.jmm;
+
+class CallOnNewInstance {
+
+    public int method() {
+        return new CallOnNewInstance().helper();
+    }
+
+    public int helper() {
+        return 10;
+    }
+}

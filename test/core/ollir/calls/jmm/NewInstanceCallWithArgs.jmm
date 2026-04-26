@@ -1,0 +1,14 @@
+package test.core.ollir.calls.jmm;
+
+class NewInstanceCallWithArgs {
+
+    public int method() {
+        NewInstanceCallWithArgs obj;
+        obj = new NewInstanceCallWithArgs();
+        return obj.add(1, 2);
+    }
+
+    public int add(int a, int b) {
+        return a + b;
+    }
+}

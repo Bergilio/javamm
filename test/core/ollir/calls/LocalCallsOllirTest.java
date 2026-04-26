@@ -110,4 +110,54 @@ public class LocalCallsOllirTest extends OllirTestEnv {
         assertTrue("Return type should be int",
                 BuiltinType.is(call.getReturnType(), BuiltinKind.INT32));
     }
+
+    @Test
+    public void testNewInstanceCallNoArgs() {
+        var method = toOllir("NewInstanceCallNoArgs.jmm", "method");
+
+        // should have a new instruction followed by invokespecial then invokevirtual
+        var news = assertInstExists(NewInstruction.class, method);
+        var invokeSpecials = assertInstExists(InvokeSpecialInstruction.class, method);
+        var calls = assertInstExists(InvokeVirtualInstruction.class, method);
+
+        var call = calls.getFirst();
+        assertTrue("Method name should be 'helper'",
+                call.getMethodName() instanceof LiteralElement le && le.getLiteral().equals("helper"));
+        assertTrue("Return type should be int",
+                BuiltinType.is(call.getReturnType(), BuiltinKind.INT32));
+
+        // new must come before the virtual call
+        assertOrder(news.getFirst(), call, method);
+    }
+
+    @Test
+    public void testNewInstanceCallWithArgs() {
+        var method = toOllir("NewInstanceCallWithArgs.jmm", "method");
+
+        var news = assertInstExists(NewInstruction.class, method);
+        var calls = assertInstExists(InvokeVirtualInstruction.class, method);
+
+        var call = calls.getFirst();
+        assertTrue("Method name should be 'add'",
+                call.getMethodName() instanceof LiteralElement le && le.getLiteral().equals("add"));
+        assertEquals("Call should have 2 arguments", 2, call.getArguments().size());
+        assertTrue("Return type should be int",
+                BuiltinType.is(call.getReturnType(), BuiltinKind.INT32));
+
+        assertOrder(news.getFirst(), call, method);
+    }
+
+    @Test
+    public void testCallOnNewInstance() {
+        var method = toOllir("CallOnNewInstance.jmm", "method");
+
+        var news = assertInstExists(NewInstruction.class, method);
+        var calls = assertInstExists(InvokeVirtualInstruction.class, method);
+
+        var call = calls.getFirst();
+        assertTrue("Method name should be 'helper'",
+                call.getMethodName() instanceof LiteralElement le && le.getLiteral().equals("helper"));
+
+        assertOrder(news.getFirst(), call, method);
+    }
 }

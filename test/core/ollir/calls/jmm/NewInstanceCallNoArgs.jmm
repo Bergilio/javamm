@@ -1,0 +1,14 @@
+package test.core.ollir.calls.jmm;
+
+class NewInstanceCallNoArgs {
+
+    public int method() {
+        NewInstanceCallNoArgs obj;
+        obj = new NewInstanceCallNoArgs();
+        return obj.helper();
+    }
+
+    public int helper() {
+        return 42;
+    }
+}
