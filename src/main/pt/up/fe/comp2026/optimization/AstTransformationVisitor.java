@@ -174,7 +174,7 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
         var method = findMethod(fTable, sig, methodName, tU);
         if(method != null && method.isStatic()) {
             var newNode = new JmmNodeImpl(JmmKind.VAR_REF_EXPR);
-            newNode.put("name", curTable.getClass().getCanonicalName());
+            newNode.put("name", curTable.get().getClassName());
             target.replace(newNode);
             target.removeParent();
         }
