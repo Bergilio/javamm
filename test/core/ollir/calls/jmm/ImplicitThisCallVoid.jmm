@@ -1,0 +1,11 @@
+package test.core.ollir.calls.jmm;
+
+class ImplicitThisCallVoid {
+
+    public void method() {
+        helper();
+    }
+
+    public void helper() {
+    }
+}

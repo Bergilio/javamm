@@ -1,0 +1,12 @@
+package test.core.ollir.calls.jmm;
+
+class LocalInstanceCallRetInt {
+
+    public int method() {
+        return this.helper();
+    }
+
+    public int helper() {
+        return 42;
+    }
+}

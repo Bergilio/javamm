@@ -1,0 +1,12 @@
+package test.core.ollir.calls.jmm;
+
+class ImplicitThisCallRetInt {
+
+    public int method() {
+        return helper();
+    }
+
+    public int helper() {
+        return 42;
+    }
+}
