@@ -1,5 +1,6 @@
 package pt.up.fe.comp2026.optimization;
 
+import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmPrimitiveType;
@@ -19,11 +20,13 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
     private static final String SPACE = " ";
     private static final String ASSIGN = ":=";
     private final String END_STMT = ";\n";
+    private static final String TAB = "\t";
 
     private final SymbolTable table;
 
     private final TypeUtils types;
     private final OptUtils ollirTypes;
+    private MethodSymbol currentMethod;
 
 
     public OllirExprGeneratorVisitor(SymbolTable table, OptUtils ollirTypes) {
@@ -32,6 +35,9 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         this.ollirTypes = ollirTypes; // We need to pass ollirTypes, to ensure labels are unique
     }
 
+    public void setCurrentMethod(MethodSymbol currentMethod) {
+        this.currentMethod = currentMethod;
+    }
 
     @Override
     protected void buildVisitor() {
@@ -77,7 +83,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         String resOllirType = ollirTypes.toOllirType(resType);
         String code = ollirTypes.nextTemp() + resOllirType;
 
-        computation.append(code).append(SPACE)
+        computation.append(TAB).append(code).append(SPACE)
                 .append(ASSIGN).append(resOllirType).append(SPACE)
                 .append(lhs.getCode()).append(SPACE);
 
@@ -137,7 +143,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         indexResults.forEach(ir -> computation.append(ir.getComputation()));
 
         code = ollirTypes.nextTemp() + accessResOllirType;
-        computation.append(code).append(SPACE).append(ASSIGN).append(accessResOllirType).append(SPACE).append(arrayExpr.getCode());
+        computation.append(TAB).append(code).append(SPACE).append(ASSIGN).append(accessResOllirType).append(SPACE).append(arrayExpr.getCode());
         indexResults.forEach(ir -> computation.append('[').append(ir.getCode()).append(']'));
         computation.append(accessResOllirType).append(END_STMT);
 
@@ -149,11 +155,14 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         JmmType type = types.getExprType(node);
         String ollirType = ollirTypes.toOllirType(type);
 
+        if(currentMethod.getParameter(node.get("name")).isPresent() || currentMethod.getLocalVariable(node.get("name")).isPresent())
+            return new OllirExprResult(id + ollirType, "");
+
         // if it's a class field, use getfield
         if (table.getField(node.get("name")).isPresent()) {
             var computation = new StringBuilder();
             var temp = ollirTypes.nextTemp() + ollirType;
-            computation.append(temp).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
+            computation.append(TAB).append(temp).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
                     .append("getfield(this, ").append(id).append(ollirType).append(")").append(ollirType).append(END_STMT);
             return new OllirExprResult(temp, computation);
         }
@@ -187,7 +196,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
         var computation = new StringBuilder();
         var id = ollirTypes.nextTemp();
-        computation.append(id).append(".i32").append(SPACE).append(ASSIGN).append(".i32").append(SPACE).append("arraylength(").append(arrayRef.getCode()).append(").i32").append(END_STMT);
+        computation.append(TAB).append(id).append(".i32").append(SPACE).append(ASSIGN).append(".i32").append(SPACE).append("arraylength(").append(arrayRef.getCode()).append(").i32").append(END_STMT);
         var code = id + ".i32";
         return new OllirExprResult(code, computation);
     }
@@ -210,7 +219,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         String code = "";
         if(methodType != JmmPrimitiveType.VOID) {
             code = ollirTypes.nextTemp() + ollirTypes.toOllirType(methodType);
-            computation.append(code).append(SPACE).append(ASSIGN).append(ollirTypes.toOllirType(methodType)).append(SPACE);
+            computation.append(TAB).append(code).append(SPACE).append(ASSIGN).append(ollirTypes.toOllirType(methodType)).append(SPACE);
         }
 
         var invokeType = isStaticRef ? "invokestatic(" + called.asClass().name() : "invokevirtual(" + accessedRes.getCode();
@@ -241,7 +250,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         computation.append(operand.getComputation());
 
         String code = ollirTypes.nextTemp() + resOllirType;
-        computation.append(code).append(SPACE).append(ASSIGN).append(resOllirType).append(SPACE)
+        computation.append(TAB).append(code).append(SPACE).append(ASSIGN).append(resOllirType).append(SPACE)
                 .append(op).append(resOllirType).append(SPACE)
                 .append(operand.getCode()).append(END_STMT);
 
@@ -258,7 +267,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         argsRes.forEach(ir -> computation.append(ir.getComputation()));
 
         String temp = ollirTypes.nextTemp() + classOllirType;
-        computation.append(temp).append(SPACE).append(ASSIGN).append(classOllirType).append(SPACE)
+        computation.append(TAB).append(temp).append(SPACE).append(ASSIGN).append(classOllirType).append(SPACE)
                 .append("new(").append(className).append(")").append(classOllirType).append(END_STMT);
 
         computation.append("invokespecial(").append(temp).append(", \"<init>\"");

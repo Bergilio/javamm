@@ -1,5 +1,6 @@
 package pt.up.fe.comp2026.optimization;
 
+import org.stringtemplate.v4.ST;
 import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.Signature;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.EXPR;
+import static pt.up.fe.comp2026.jmm.ast.JmmKind.STMT;
 
 public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
     final private SymbolTable table;
@@ -30,6 +32,7 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
         addVisit(JmmKind.METHOD_DECL, this::visitMethodDecl);
         addVisit(JmmKind.IMPLICIT_THIS_FUNCTION_CALL, this::visitImplicitThisCall);
         addVisit(JmmKind.FUNCTION_CALL, this::visitFunctionCall);
+        addVisit(JmmKind.UNARY_EXPR, this::visitUnaryOp);
         setDefaultVisit(this::defaultVisit);
     }
 
@@ -41,45 +44,52 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
     private Void visitFor(JmmNode forStmt, Void unused) {
         var assignFor = forStmt.getChildren(JmmKind.ASSIGN_FOR);
         if (!assignFor.isEmpty()) {
-            var expr = assignFor.getFirst().getChild(0);
+            var initNode = assignFor.getFirst();
+            var expr = initNode.getChild(0);
             expr.removeParent();
-            var id = assignFor.getFirst().get("var");
+
             var newNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
-            newNode.put("var", id);
+            newNode.put("var", initNode.get("var"));
             newNode.add(expr);
-            var index = forStmt.getIndexOfSelf();
-            var parent = forStmt.getParent();
-            parent.add(newNode, index);
+
+            forStmt.getParent().add(newNode, forStmt.getIndexOfSelf());
         }
 
-        var stmtsInScope = forStmt.getChildren(JmmKind.STMT);
+        var whileNode = new JmmNodeImpl(JmmKind.WHILE_STMT);
+
         var eval = forStmt.getChildren(JmmKind.EXPR);
+        if (!eval.isEmpty()) {
+            var cond = eval.getFirst();
+            cond.removeParent();
+            whileNode.add(cond);
+        } else {
+            var trueLiteral = new JmmNodeImpl(JmmKind.BOOLEAN_LITERAL);
+            trueLiteral.put("value", "true");
+            whileNode.add(trueLiteral);
+        }
+
+        var whileBody = new JmmNodeImpl(JmmKind.BLOCK);
+        var bodyStmts = forStmt.getChildren(JmmKind.STMT);
+        for (var s : bodyStmts) {
+            s.removeParent();
+            whileBody.add(s);
+        }
+
         var assignFor2 = forStmt.getChildren(JmmKind.ASSIGN_FOR2);
-        var newNode = new JmmNodeImpl(JmmKind.WHILE_STMT);
-        if(!eval.isEmpty()) {
-            var evalExpr = eval.getFirst();
-            evalExpr.removeParent();
-            newNode.add(evalExpr);
-        }
-        else {
-            var newEval = new JmmNodeImpl(JmmKind.BOOLEAN_LITERAL);
-            newEval.put("value", "true");
-            newNode.add(newEval);
+        if (!assignFor2.isEmpty()) {
+            var updateInit = assignFor2.getFirst();
+            var updateExpr = updateInit.getChild(0);
+            updateExpr.removeParent();
+
+            var updateNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
+            updateNode.put("var", updateInit.get("var"));
+            updateNode.add(updateExpr);
+
+            whileBody.add(updateNode);
         }
 
-        if(!assignFor2.isEmpty()) {
-            var temp = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
-            temp.put("var", assignFor2.getFirst().get("var"));
-            var expr = assignFor2.getFirst().getChild(0);
-            expr.removeParent();
-            temp.add(expr);
-        }
-
-        for(var stmt : stmtsInScope) {
-            stmt.removeParent();
-            newNode.add(stmt);
-        }
-        forStmt.replace(newNode);
+        whileNode.add(whileBody);
+        forStmt.replace(whileNode);
         return null;
     }
 
@@ -133,6 +143,62 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
         var isRet = methodDecl.getChildren().getLast().isInstance(JmmKind.RETURN_STMT);
         if(!isRet)
             methodDecl.add(new JmmNodeImpl(JmmKind.RETURN_STMT));
+        return null;
+    }
+
+    private Void visitUnaryOp(JmmNode unaryOp, Void unused) {
+        var op = unaryOp.get("op");
+        var expr = unaryOp.getChild(0);
+        switch (op) {
+            case "+" -> {  //Useless op
+                expr.removeParent();
+                unaryOp.replace(expr);
+            }
+            case "-" -> {
+                var newNode = new JmmNodeImpl(JmmKind.BINARY_EXPR);
+                var zero = new JmmNodeImpl(JmmKind.INTEGER_LITERAL);
+                newNode.put("op", "-");
+                zero.put("value", "0");
+                newNode.add(zero);
+                expr.removeParent();
+                newNode.add(expr);
+                unaryOp.replace(newNode);
+            }
+            case "++" -> {
+                //Not sure of how complete this actually is. Not sure if it handles (or we even have to handle) fields
+                //Same story for the next one
+                var assignNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
+                var assignOp = new JmmNodeImpl(JmmKind.BINARY_EXPR);
+                var one = new JmmNodeImpl(JmmKind.INTEGER_LITERAL);
+                one.put("value", "1");
+                assignOp.put("op", "+");
+                expr.removeParent();
+                var exprCopy = expr.copy();
+                assignOp.add(exprCopy);
+                assignOp.add(one);
+                assignNode.put("var", expr.get("name"));
+                assignNode.add(assignOp);
+                var parentStmt = unaryOp.getAncestor(STMT).get();
+                parentStmt.getParent().add(assignNode, parentStmt.getIndexOfSelf());
+                unaryOp.replace(expr);
+            }
+            case "--" -> {
+                var assignNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
+                var assignOp = new JmmNodeImpl(JmmKind.BINARY_EXPR);
+                var one = new JmmNodeImpl(JmmKind.INTEGER_LITERAL);
+                one.put("value", "1");
+                assignOp.put("op", "-");
+                expr.removeParent();
+                var exprCopy = expr.copy();
+                assignOp.add(exprCopy);
+                assignOp.add(one);
+                assignNode.put("var", expr.get("name"));
+                assignNode.add(assignOp);
+                var parentStmt = unaryOp.getAncestor(STMT).get();
+                parentStmt.getParent().add(assignNode, parentStmt.getIndexOfSelf());
+                unaryOp.replace(expr);
+            }
+        }
         return null;
     }
 

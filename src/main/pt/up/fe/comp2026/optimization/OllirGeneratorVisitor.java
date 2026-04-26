@@ -18,6 +18,7 @@ import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
 public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
     private static final String SPACE = " ";
+    private static final String TAB = "\t";
     private static final String ASSIGN = ":=";
     private final String END_STMT = ";\n";
     private final String NL = "\n";
@@ -53,7 +54,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(IF_STMT, this::visitIfStmt);
         addVisit(WHILE_STMT, this::visitWhileStmt);
         addVisit(EXPR_STMT, this::visitExprStmt);
-        //addVisit(BLOCK, this::visitBlock);
+        addVisit(BLOCK, this::visitBlock);
     }
 
     private String nextLabel(String prefix) {
@@ -81,21 +82,21 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         var code = new StringBuilder();
         code.append(rhs.getComputation());
 
+        // local variable or parameter assignment
+        if(currentMethod.getParameter(varName).isPresent() || currentMethod.getLocalVariable(varName).isPresent()) {
+            code.append(TAB).append(ollirTypes.sanitizeId(varName)).append(typeString)
+                    .append(SPACE).append(ASSIGN).append(typeString).append(SPACE)
+                    .append(rhs.getCode())
+                    .append(END_STMT);
+        }
+
         // field assignment uses putfield
-        if (table.getField(varName).isPresent()) {
+        else {
             code.append("putfield(this, ")
                     .append(ollirTypes.sanitizeId(varName)).append(typeString).append(", ")
                     .append(rhs.getCode()).append(").V")
                     .append(END_STMT);
-            return code.toString();
         }
-
-        // local variable or parameter assignment
-        code.append(ollirTypes.sanitizeId(varName)).append(typeString)
-                .append(SPACE).append(ASSIGN).append(typeString).append(SPACE)
-                .append(rhs.getCode())
-                .append(END_STMT);
-
         return code.toString();
     }
 
@@ -145,7 +146,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         var expr = exprVisitor.visit(node.getChild(0));
         var code = new StringBuilder();
         code.append(expr.getComputation());
-        code.append("ret").append(typeString).append(SPACE);
+        code.append(TAB).append("ret").append(typeString).append(SPACE);
         code.append(expr.getCode());
         code.append(END_STMT);
         return code.toString();
@@ -155,19 +156,18 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         var thenLabel = nextLabel("then");
         var endLabel = nextLabel("endif");
         var hasElse = node.getChildren().size() == 3;
-        var elseLabel = hasElse ? nextLabel("else") : endLabel;
 
         var cond = exprVisitor.visit(node.getChild(0));
         var code = new StringBuilder();
 
         code.append(cond.getComputation());
-        code.append("if (").append(cond.getCode()).append(") goto ").append(thenLabel).append(END_STMT);
+        code.append(TAB).append("if (").append(cond.getCode()).append(") goto ").append(thenLabel).append(END_STMT);
 
         // else body
         if (hasElse) {
             code.append(visit(node.getChild(2)));
         }
-        code.append("goto ").append(endLabel).append(END_STMT);
+        code.append(TAB).append("goto ").append(endLabel).append(END_STMT);
 
         // then body
         code.append(thenLabel).append(":\n");
@@ -181,6 +181,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
     private String visitWhileStmt(JmmNode node, Void unused) {
         var loopLabel = nextLabel("loop");
+        var loopBody = nextLabel("loopbody");
         var endLabel = nextLabel("endloop");
 
         var cond = exprVisitor.visit(node.getChild(0));
@@ -188,9 +189,11 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
         code.append(loopLabel).append(":\n");
         code.append(cond.getComputation());
-        code.append("if (").append(cond.getCode()).append(") goto ").append(endLabel).append(END_STMT);
+        code.append(TAB).append("if (").append(cond.getCode()).append(") goto ").append(loopBody).append(END_STMT);
+        code.append(TAB).append("goto ").append(endLabel).append(END_STMT);
+        code.append(loopBody).append(":\n");
         code.append(visit(node.getChild(1)));
-        code.append("goto ").append(loopLabel).append(END_STMT);
+        code.append(TAB).append("goto ").append(loopLabel).append(END_STMT);
         code.append(endLabel).append(":\n");
 
         return code.toString();
@@ -200,17 +203,18 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         var expr = exprVisitor.visit(node.getChild(0));
         return expr.getComputation();
     }
-/*
+
     private String visitBlock(JmmNode node, Void unused) {
         return node.getChildren(STMT).stream()
                 .map(this::visit)
                 .collect(Collectors.joining());
     }
-*/
+
     private String visitMethodDecl(JmmNode node, Void unused) {
         var methodOpt = table.getMethod(TypeUtils.with(table).getMethodDeclSignature(node));
         if (methodOpt.isEmpty()) return "";
         currentMethod = methodOpt.get();
+        exprVisitor.setCurrentMethod(currentMethod);
 
         StringBuilder code = new StringBuilder(".method ");
 
@@ -241,23 +245,37 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         /*
         // local variable declarations
         for (var local : currentMethod.localVariables()) {
-            code.append(SPACE).append(SPACE)
+            code.append(TAB)
                     .append(ollirTypes.sanitizeId(local.name()))
                     .append(ollirTypes.toOllirType(local.type()))
                     .append(END_STMT);
         }
         */
         // statements
+        for (var varDecl : node.getChildren(VAR_DECL)) {
+            if(varDecl.getChildren().size() > 1) {
+                var rhs = exprVisitor.visit(varDecl.getChild(1), unused);
+                var varName = varDecl.get(JmmAttributes.VAR_DECL.NAME);
+                var type = ollirTypes.toOllirType(currentMethod.getLocalVariable(varName).get().type());
+                code.append(rhs.getComputation());
+                code.append(TAB)
+                        .append(ollirTypes.sanitizeId(varName)).append(type)
+                        .append(ASSIGN).append(type).append(SPACE)
+                        .append(rhs.getCode()).append(END_STMT);
+            }
+        }
+
         for (var stmt : node.getChildren(STMT)) {
             var stmtCode = visit(stmt);
             if (stmtCode != null && !stmtCode.isEmpty()) {
-                code.append(SPACE).append(SPACE).append(stmtCode);
+                code.append(TAB).append(stmtCode);
             }
         }
 
         code.append(R_BRACKET);
         code.append(NL);
         currentMethod = null;
+        exprVisitor.setCurrentMethod(null);
         return code.toString();
     }
 
@@ -303,7 +321,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             superClass = "java.lang.Object";
 
         sb.append(".construct ").append("\"<init>\"").append("().V {\n");
-        sb.append("    invokespecial(this.").append("\"").append(superClass).append("\"").append(", \"<init>\").V;\n");
+        sb.append("\tinvokespecial(this.").append("\"").append(superClass).append("\"").append(", \"<init>\").V;\n");
 
         for (var varDecl : classNode.getChildren(VAR_DECL)) {
             if (varDecl.getChildren().size() <= 1) continue;
@@ -314,7 +332,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             var initExpr = varDecl.getChild(1);
             var exprResult = exprVisitor.visit(initExpr);
             sb.append(exprResult.getComputation());
-            sb.append("    putfield(this, ")
+            sb.append("\tputfield(this, ")
                     .append(ollirTypes.sanitizeId(fieldName)).append(fieldType).append(", ")
                     .append(exprResult.getCode()).append(").V;\n");
         }
