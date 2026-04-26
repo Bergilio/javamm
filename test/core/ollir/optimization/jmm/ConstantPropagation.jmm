@@ -1,0 +1,39 @@
+package core.ollir.optimization.jmm;
+
+class ConstantPropagation {
+
+    public int simplePropagate() {
+        int a;
+        int b;
+        a = 5;
+        b = a + 3;
+        return b;
+    }
+
+    public int propagateThenFold() {
+        int a;
+        int b;
+        int c;
+        a = 5;
+        b = 3;
+        c = a + b;
+        return c;
+    }
+
+    public int reassignNoPropagate() {
+        int a;
+        int b;
+        a = 5;
+        a = 10;
+        b = a + 3;
+        return b;
+    }
+
+    public boolean propagateBool() {
+        boolean a;
+        boolean b;
+        a = true;
+        b = !a;
+        return b;
+    }
+}

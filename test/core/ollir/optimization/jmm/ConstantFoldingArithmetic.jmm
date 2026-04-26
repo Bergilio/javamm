@@ -1,0 +1,40 @@
+package core.ollir.optimization.jmm;
+
+class ConstantFoldingArithmetic {
+
+    public int simpleAdd() {
+        int a;
+        a = 10 + 5;
+        return a;
+    }
+
+    public int simpleMul() {
+        int a;
+        a = 3 * 4;
+        return a;
+    }
+
+    public int simpleSub() {
+        int a;
+        a = 10 - 3;
+        return a;
+    }
+
+    public int simpleDiv() {
+        int a;
+        a = 20 / 4;
+        return a;
+    }
+
+    public int nested() {
+        int a;
+        a = (2 + 3) * 4;
+        return a;
+    }
+
+    public int chained() {
+        int a;
+        a = 1 + 2 + 3 + 4;
+        return a;
+    }
+}

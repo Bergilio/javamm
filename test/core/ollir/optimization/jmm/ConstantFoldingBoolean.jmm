@@ -1,0 +1,34 @@
+package core.ollir.optimization.jmm;
+
+class ConstantFoldingBoolean {
+
+    public boolean andExpr() {
+        boolean a;
+        a = true && false;
+        return a;
+    }
+
+    public boolean orExpr() {
+        boolean a;
+        a = true || false;
+        return a;
+    }
+
+    public boolean notExpr() {
+        boolean a;
+        a = !true;
+        return a;
+    }
+
+    public boolean comparison() {
+        boolean a;
+        a = 3 < 5;
+        return a;
+    }
+
+    public boolean comparisonFalse() {
+        boolean a;
+        a = 10 < 5;
+        return a;
+    }
+}
