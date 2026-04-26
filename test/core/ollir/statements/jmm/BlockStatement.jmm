@@ -1,0 +1,18 @@
+package test.core.ollir.statements.jmm;
+
+class BlockStatement {
+
+    public int method(boolean cond) {
+        int x;
+        int y;
+        x = 0;
+        y = 0;
+        if (cond) {
+            {
+                x = 1;
+                y = 2;
+            }
+        }
+        return x + y;
+    }
+}

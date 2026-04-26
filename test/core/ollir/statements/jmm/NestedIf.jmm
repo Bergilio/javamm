@@ -1,0 +1,19 @@
+package test.core.ollir.statements.jmm;
+
+class NestedIf {
+
+    public int method(int a, int b) {
+        int result;
+        result = 0;
+        if (a < b) {
+            if (a < 0) {
+                result = 1;
+            } else {
+                result = 2;
+            }
+        } else {
+            result = 3;
+        }
+        return result;
+    }
+}

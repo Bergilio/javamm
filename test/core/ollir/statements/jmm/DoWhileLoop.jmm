@@ -1,0 +1,13 @@
+package test.core.ollir.statements.jmm;
+
+class DoWhileLoop {
+
+    public int method(int n) {
+        int i;
+        i = 0;
+        do {
+            i = i + 1;
+        } while (i < n);
+        return i;
+    }
+}
