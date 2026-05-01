@@ -149,23 +149,38 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
             case "++" -> {
                 //Not sure of how complete this actually is. Not sure if it handles (or we even have to handle) fields
                 //Same story for the next one
-                var assignNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
+                JmmNode assignNode;
                 var assignOp = new JmmNodeImpl(JmmKind.BINARY_EXPR);
                 var one = new JmmNodeImpl(JmmKind.INTEGER_LITERAL);
                 one.put("value", "1");
                 assignOp.put("op", "+");
                 expr.removeParent();
-                var exprCopy = expr.copy();
+                var exprCopy = expr.copyDeep(expr.getKind());
                 assignOp.add(exprCopy);
                 assignOp.add(one);
-                assignNode.put("var", expr.get("name"));
+                if(expr.isInstance(JmmKind.VAR_REF_EXPR)) {
+                    assignNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
+                    assignNode.put("var", expr.get("name"));
+                }
+                else {
+                    assignNode = new JmmNodeImpl(JmmKind.ASSIGN_ARRAY_ELEMENT_STMT);
+                    assignNode.put("var", expr.getChild(0).get("name") );
+                    for(var arrayIndex : expr.getChildren().subList(1, expr.getChildren().size())){
+                        arrayIndex.removeParent();
+                        assignNode.add(arrayIndex);
+                    }
+                }
+                for(var c : expr.getChildren()) {
+                    c.removeParent();
+                    exprCopy.add(c);
+                }
                 assignNode.add(assignOp);
                 var parentStmt = unaryOp.getAncestor(STMT).get();
                 parentStmt.getParent().add(assignNode, parentStmt.getIndexOfSelf());
                 unaryOp.replace(expr);
             }
             case "--" -> {
-                var assignNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
+                JmmNode assignNode;;
                 var assignOp = new JmmNodeImpl(JmmKind.BINARY_EXPR);
                 var one = new JmmNodeImpl(JmmKind.INTEGER_LITERAL);
                 one.put("value", "1");
@@ -174,7 +189,18 @@ public class AstTransformationVisitor extends PostorderJmmVisitor<Void, Void> {
                 var exprCopy = expr.copy();
                 assignOp.add(exprCopy);
                 assignOp.add(one);
-                assignNode.put("var", expr.get("name"));
+                if(expr.isInstance(JmmKind.VAR_REF_EXPR)) {
+                    assignNode = new JmmNodeImpl(JmmKind.ASSIGN_STMT);
+                    assignNode.put("var", expr.get("name"));
+                }
+                else {
+                    assignNode = new JmmNodeImpl(JmmKind.ASSIGN_ARRAY_ELEMENT_STMT);
+                    assignNode.put("var", expr.getChild(0).get("name") );
+                    for(var arrayIndex : expr.getChildren().subList(1, expr.getChildren().size())) {
+                        arrayIndex.removeParent();
+                        assignNode.add(arrayIndex);
+                    }
+                }
                 assignNode.add(assignOp);
                 var parentStmt = unaryOp.getAncestor(STMT).get();
                 parentStmt.getParent().add(assignNode, parentStmt.getIndexOfSelf());

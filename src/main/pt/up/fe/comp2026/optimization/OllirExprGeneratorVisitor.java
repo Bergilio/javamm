@@ -195,15 +195,15 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 .toList();
 
         var computation = new StringBuilder();
-        var code = new StringBuilder();
 
         indexResults.forEach(ir -> computation.append(ir.getComputation()));
 
-        code.append("new(array");
-        indexResults.forEach(ir -> code.append(", ").append(ir.getCode()));
-        code.append(")").append(ollirType);
+        var code = ollirTypes.nextTemp() + ollirType;
+        computation.append(TAB).append(code).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE).append("new(array");
+        indexResults.forEach(ir -> computation.append(", ").append(ir.getCode()));
+        computation.append(")").append(ollirType).append(END_STMT);
 
-        return new OllirExprResult(code.toString(), computation);
+        return new OllirExprResult(code, computation);
     }
 
     private OllirExprResult visitLengthOp(JmmNode node, Void unused) {
