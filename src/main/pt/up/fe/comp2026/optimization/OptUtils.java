@@ -66,9 +66,9 @@ public class OptUtils {
             };
         }
 
-        if (type instanceof JmmArrayType array) {
+        if (type instanceof JmmArrayType(JmmType itemType, int dimension)) {
             // Recursively build the array type suffix
-            return ".array".repeat(array.dimension()) + toOllirType(array.itemType());
+            return ".array".repeat(dimension) + toOllirType(itemType);
         }
 
         if (type instanceof JmmClassType classType) {

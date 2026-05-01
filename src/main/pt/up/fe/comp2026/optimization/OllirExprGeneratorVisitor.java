@@ -3,6 +3,7 @@ package pt.up.fe.comp2026.optimization;
 import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
+import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmPrimitiveType;
 import pt.up.fe.comp.jmm.ast.AJmmVisitor;
 import pt.up.fe.comp.jmm.ast.JmmNode;
@@ -127,6 +128,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
     private OllirExprResult visitArrayAccess(JmmNode node, Void unused) {
         var arrayExpr = visit(node.getChild(0));
+        var arrayExprType = types.getExprType(node.getChild(0));
 
         var accessType = types.arrayAccessType(node);
         var accessResOllirType = ollirTypes.toOllirType(accessType);
@@ -138,14 +140,26 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 .toList();
 
         var computation = new StringBuilder();
-        var code = new String();
+        var code = "";
+        var prev = arrayExpr.getCode();
+
 
         computation.append(arrayExpr.getComputation());
         indexResults.forEach(ir -> computation.append(ir.getComputation()));
 
+        for(int i = 0; i < indexResults.size() - 1; i++) {
+            var index = indexResults.get(i);
+            var temp = ollirTypes.nextTemp();
+            var interAccessType = ollirTypes.toOllirType(new JmmArrayType(arrayExprType.asArray().itemType(),
+                    arrayExprType.asArray().dimension() - i - 1));
+            computation.append(TAB).append(temp).append(interAccessType).append(SPACE).append(ASSIGN).append(interAccessType).append(SPACE)
+                    .append(prev).append('[').append(index.getCode()).append(']').append(interAccessType).append(END_STMT);
+            prev = temp;
+        }
+
         code = ollirTypes.nextTemp() + accessResOllirType;
-        computation.append(TAB).append(code).append(SPACE).append(ASSIGN).append(accessResOllirType).append(SPACE).append(arrayExpr.getCode());
-        indexResults.forEach(ir -> computation.append('[').append(ir.getCode()).append(']'));
+        computation.append(TAB).append(code).append(SPACE).append(ASSIGN).append(accessResOllirType).append(SPACE).append(prev)
+        .append('[').append(indexResults.getLast().getCode()).append(']');
         computation.append(accessResOllirType).append(END_STMT);
 
         return new OllirExprResult(code, computation);

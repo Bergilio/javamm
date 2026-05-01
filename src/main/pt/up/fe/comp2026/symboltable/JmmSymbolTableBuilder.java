@@ -93,7 +93,7 @@ public class JmmSymbolTableBuilder {
 
             // Not sure if this is adequate
             if(superQualifiedNameName == null && importer.isImplicitImport(name))
-                superQualifiedNameName = name;
+                superQualifiedNameName = importer.tryImplicitImport(name).orElseThrow().getFullyQualifiedName();
 
             else if(superQualifiedNameName == null && importer.inClassPath(name))
                 superQualifiedNameName = packagePath + "." + name;
@@ -104,7 +104,7 @@ public class JmmSymbolTableBuilder {
             }
         }
         else
-            superQualifiedNameName = "Object";
+            superQualifiedNameName = "java.lang.Object";
 
         var methods = buildMethods(classDecl);
         var fields = buildVars(classDecl);
@@ -253,7 +253,7 @@ public class JmmSymbolTableBuilder {
             }
             else if(importer.isImplicitImport(name)) {
                 imported = true;
-                fqn = name;
+                fqn = importer.tryImplicitImport(name).orElseThrow().getFullyQualifiedName();
             }
             else {
                 reports.add(newError(node, "Can't compute type '" + name + "'"));

@@ -244,7 +244,7 @@ public class TypeUtils {
         var asLocal = method.getLocalVariable(varName);
         if (asLocal.isPresent()) return asLocal.get().type();
 
-        if(Importer.fromThisClassPath().isImplicitImport(varName)) return new JmmClassType(varName, true, true);
+        if(Importer.fromThisClassPath().isImplicitImport(varName)) return new JmmClassType(Importer.fromThisClassPath().tryImplicitImport(varName).orElseThrow().getFullyQualifiedName(), true, true);
 
         var staticRef = table.getClassName();
         if(varName.equals(staticRef))
@@ -287,8 +287,6 @@ public class TypeUtils {
 
         if(destinationType.equals(curType) || sourceType.equals(curType)) {
             var destFQN = destinationType.asClass().fullyQualifiedName();
-            if(destFQN.equals("java.lang.Object"))
-                destFQN = "Object";
             var sourceFQN = sourceType.asClass().fullyQualifiedName();
             if(sourceFQN.equals(destFQN))
                 return true;
@@ -353,7 +351,7 @@ public class TypeUtils {
         }
         else if(Importer.fromThisClassPath().isImplicitImport(name)) {
             imported = true;
-            fqn = name;
+            fqn = Importer.fromThisClassPath().tryImplicitImport(name).orElseThrow().getFullyQualifiedName();
         }
         else
             throw new RuntimeException("Can't find class with name '" + name + "'");
@@ -371,7 +369,7 @@ public class TypeUtils {
         }
         else if(Importer.fromThisClassPath().isImplicitImport(name)) {
             imported = true;
-            fqn = name;
+            fqn = Importer.fromThisClassPath().tryImplicitImport(name).orElseThrow().getFullyQualifiedName();
         }
         else
             throw new RuntimeException("Can't find class with name '" + name + "'");
@@ -402,8 +400,8 @@ public class TypeUtils {
         }
         else if(Importer.fromThisClassPath().isImplicitImport(name)) {
             imported = true;
-            fqn = name;
-            st = Importer.fromThisClassPath().tryImplicitImport(fqn).orElseThrow();
+            st = Importer.fromThisClassPath().tryImplicitImport(name).orElseThrow();
+            fqn = st.getFullyQualifiedName();
         }
         else
             throw new RuntimeException("Can't find class with name '" + name + "'");

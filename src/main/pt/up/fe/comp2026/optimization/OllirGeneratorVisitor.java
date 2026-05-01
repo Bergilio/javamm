@@ -3,6 +3,7 @@ package pt.up.fe.comp2026.optimization;
 import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
+import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.ast.AJmmVisitor;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp2026.ast.TypeUtils;
@@ -105,8 +106,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         var varType = getVarType(varName);
         var typeString = ollirTypes.toOllirType(varType);
 
-        // element type (strip one array dimension)
-        var elemType = varType.asArray().itemType();
+        var elemType = types.getExprType(node.getChildren().getLast());
         var elemTypeString = ollirTypes.toOllirType(elemType);
 
         // visit indices
@@ -122,9 +122,19 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         indexResults.forEach(ir -> code.append(ir.getComputation()));
         code.append(rhs.getComputation());
 
+        var prev = ollirTypes.sanitizeId(varName) + typeString;
+        for(int i = 0; i < indexResults.size() - 1; i++) {
+            var index = indexResults.get(i);
+            var temp = ollirTypes.nextTemp();
+            var interAccessType = ollirTypes.toOllirType(new JmmArrayType(varType.asArray().itemType(),
+                    varType.asArray().dimension() - i - 1));
+            code.append(TAB).append(temp).append(interAccessType).append(SPACE).append(ASSIGN).append(interAccessType).append(SPACE)
+                    .append(prev).append('[').append(index.getCode()).append(']').append(interAccessType).append(END_STMT);
+            prev = temp;
+        }
+
         // A[i.i32].i32 :=.i32 val.i32;
-        code.append(ollirTypes.sanitizeId(varName)).append(typeString)
-                .append("[").append(indexResults.getFirst().getCode()).append("]")
+        code.append(TAB).append(prev).append("[").append(indexResults.getLast().getCode()).append("]")
                 .append(elemTypeString)
                 .append(SPACE).append(ASSIGN).append(elemTypeString).append(SPACE)
                 .append(rhs.getCode())
