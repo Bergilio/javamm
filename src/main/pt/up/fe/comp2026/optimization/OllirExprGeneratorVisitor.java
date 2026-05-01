@@ -54,6 +54,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         addVisit(UNARY_EXPR, this::visitUnaryExpr);
         addVisit(CONSTRUCTOR, this::visitConstructor);
         addVisit(FIELD_ACCESS, this::visitFieldAccess);
+        addVisit(ARRAY_ALLOC_INIT, this::visitArrayAllocInit);
     }
 
     private OllirExprResult visitInteger(JmmNode node, Void unused) {
@@ -306,5 +307,31 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                 .append(ollirTypes.sanitizeId(fieldName)).append(ollirType).append(")")
                 .append(ollirType).append(END_STMT);
         return new OllirExprResult(temp, computation);
+    }
+
+    private OllirExprResult visitArrayAllocInit(JmmNode node, Void unused) {
+        var arrayType = types.getExprType(node);
+        var ollirType = ollirTypes.toOllirType(arrayType);
+
+        var computation = new StringBuilder();
+
+        var initVals = node.getChildren(EXPR).stream().map(this::visit).toList();
+        initVals.forEach(ir -> computation.append(ir.getComputation()));
+
+        var code = ollirTypes.nextTemp() + ollirType;
+        computation.append(TAB).append(code).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE).
+                append("new(array, ").append(initVals.size()).append(".i32").append(")").append(ollirType).append(END_STMT);
+
+        String accessType;
+        var array = arrayType.asArray();
+        if(array.dimension() == 1)
+            accessType = ollirTypes.toOllirType(array.itemType());
+        else
+            accessType = "array".repeat(array.dimension() - 1) + ollirTypes.toOllirType(array.itemType());
+        for(var i = 0; i < initVals.size(); i++)
+            computation.append(TAB).append(code).append('[').append(i).append(".i32").append(']').append(accessType)
+                    .append(SPACE).append(ASSIGN).append(accessType).append(SPACE).append(initVals.get(i).getCode()).append(END_STMT);
+
+        return new OllirExprResult(code, computation);
     }
 }
