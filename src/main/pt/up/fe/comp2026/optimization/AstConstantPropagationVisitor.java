@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import static pt.up.fe.comp2026.jmm.ast.JmmKind.EXPR;
+import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
 
 public class AstConstantPropagationVisitor extends PostorderJmmVisitor<Void, Void> {
     private boolean changed = false;
@@ -69,10 +69,29 @@ public class AstConstantPropagationVisitor extends PostorderJmmVisitor<Void, Voi
     private Void visitAssign(JmmNode assign, Void unused) {
         var value = assign.getChild(0);
         if(value.isInstance(JmmKind.INTEGER_LITERAL) || value.isInstance(JmmKind.BOOLEAN_LITERAL)) {
-            if (definedVars.containsKey(assign.get("var")))
+            if (definedVars.containsKey(assign.get("var"))) {
+                var ancestor = assign.getAncestor(IF_STMT);
+                if (ancestor.isPresent()) {
+                    definedVars.remove(assign.get("var"));
+                    return null;
+                }
+                ancestor = assign.getAncestor(WHILE_STMT);
+                if(ancestor.isPresent()) {
+                    definedVars.remove(assign.get("var"));
+                    return null;
+                }
                 definedVars.replace(assign.get("var"), value);
-            else
+            }
+
+            else {
+                var ancestor = assign.getAncestor(IF_STMT);
+                if (ancestor.isPresent())
+                    return null;
+                ancestor = assign.getAncestor(WHILE_STMT);
+                if(ancestor.isPresent())
+                    return null;
                 definedVars.put(assign.get("var"), value);
+            }
         }
         else definedVars.remove(assign.get("var"));
         return null;

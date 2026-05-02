@@ -30,13 +30,15 @@ public class JmmOptimizationImpl implements JmmOptimization {
         var transformer = new AstTransformationVisitor(semanticsResult.getSymbolTable());
         transformer.visit(semanticsResult.getRootNode());
 
-        if(Boolean.parseBoolean(semanticsResult.config().getOrDefault("optimize", "false"))){
+        if(CompilerConfig.getOptimize(semanticsResult.config())){
             while(true) {
                 var constProp = new AstConstantPropagationVisitor(semanticsResult.getSymbolTable());
                 var constFold = new AstConstantFoldingVisitor();
+                var branchElimination = new AstBranchElimination();
                 constFold.visit(semanticsResult.getRootNode());
                 constProp.visit(semanticsResult.getRootNode());
-                if(!constFold.madeChanges() && !constProp.madeChanges())
+                branchElimination.visit(semanticsResult.getRootNode());
+                if(!constFold.madeChanges() && !constProp.madeChanges() && !branchElimination.madeChanges())
                     break;
             }
         }
