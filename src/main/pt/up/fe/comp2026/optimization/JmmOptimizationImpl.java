@@ -1,8 +1,11 @@
 package pt.up.fe.comp2026.optimization;
 
+import org.specs.comp.ollir.OllirParseResult;
+import org.specs.comp.ollir.OllirParser;
 import pt.up.fe.comp.jmm.analysis.JmmSemanticsResult;
 import pt.up.fe.comp.jmm.ollir.JmmOptimization;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
+import pt.up.fe.comp.jmm.ollir.OllirUtils;
 import pt.up.fe.comp2026.CompilerConfig;
 
 
@@ -52,6 +55,25 @@ public class JmmOptimizationImpl implements JmmOptimization {
             System.out.println(ollirResult.getOllirCode());
         }
 
+        /*
+        if(CompilerConfig.getOptimize(ollirResult.config())){
+            var classUnit = ollirResult.getOllirClass();
+            for(var method : classUnit.getMethods()){
+                if(method.isConstructMethod())
+                    continue;
+
+                var deadCode = new OllirDeadCodeElimination(method);
+                boolean changed;
+
+                do{
+                    method.buildCFG();
+                    method.buildVarTable();
+                    changed = deadCode.simplify();
+                }
+                while (changed);
+            }
+        }
+        */
         int n = CompilerConfig.getRegisterAllocation(ollirResult.config());
         if (n == -1) return ollirResult; // default: no register allocation
 
@@ -67,6 +89,4 @@ public class JmmOptimizationImpl implements JmmOptimization {
 
         return ollirResult;
     }
-
-
 }

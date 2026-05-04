@@ -32,8 +32,8 @@ public class AstConstantPropagationVisitor extends PostorderJmmVisitor<Void, Voi
         addVisit(JmmKind.VAR_REF_EXPR, this::visitVarRef);
         addVisit(JmmKind.ASSIGN_STMT, this::visitAssign);
         addVisit(JmmKind.VAR_DECL, this::visitVarDecl);
-        addVisit(JmmKind.FUNCTION_CALL, this::visitFunctionCall);
-        addVisit(JmmKind.IMPLICIT_THIS_FUNCTION_CALL, this::visitImplicitThisFunctionCall);
+        //addVisit(JmmKind.FUNCTION_CALL, this::visitFunctionCall);
+        //addVisit(JmmKind.IMPLICIT_THIS_FUNCTION_CALL, this::visitImplicitThisFunctionCall);
         setDefaultVisit(this::defaultVisit);
     }
 
@@ -139,8 +139,23 @@ public class AstConstantPropagationVisitor extends PostorderJmmVisitor<Void, Voi
             else
                 newNode = new JmmNodeImpl(JmmKind.BOOLEAN_LITERAL);
             newNode.put("value", definedMethodReturns.get(actualSig).get("value"));
+            var parent = functionCall.getParent();
+            var grandParent = parent.getParent();
+            var replacement = functionCall.copyDeep(functionCall.getKind());
+            for (var child : functionCall.getChildren()) {
+                child.removeParent();
+                replacement.add(child);
+            }
             functionCall.replace(newNode);
-            functionCall.removeParent();
+
+            JmmNode statement = functionCall;
+            while (statement.getParent() != null && !statement.getParent().isInstance(METHOD_DECL) && !statement.getParent().isInstance(BLOCK))
+                statement = statement.getParent();
+
+            if (statement.getParent() != null) {
+                var methodBody = statement.getParent();
+                methodBody.add(replacement, statement.getIndexOfSelf());
+            }
             changed = true;
         }
     }
