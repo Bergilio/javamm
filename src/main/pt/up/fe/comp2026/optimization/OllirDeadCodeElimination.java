@@ -2,6 +2,8 @@ package pt.up.fe.comp2026.optimization;
 
 import org.specs.comp.ollir.*;
 import org.specs.comp.ollir.inst.*;
+import org.specs.comp.ollir.type.ArrayType;
+import org.specs.comp.ollir.type.Type;
 
 import java.util.*;
 
@@ -16,25 +18,28 @@ public class OllirDeadCodeElimination {
     }
 
     public boolean simplify() {
-        var locals = getLocalVars();
-        computeLiveness(locals);
+        var localsAndParams = getLocalVarsAndParams();
+        computeLiveness(localsAndParams);
 
         var toRemove = new ArrayList<Instruction>();
 
         for(var instruction : method.getInstructions())
             if(instruction.getInstType().equals(InstructionType.ASSIGN)) {
                 var inst = (AssignInstruction) instruction;
-                if (inst.getDest() instanceof ArrayOperand)
-                    continue;
 
                 var outSet = liveOut.get(instruction);
                 var op = ((Operand) inst.getDest()).getName();  //Expand to arrays
 
                 boolean isDead = !outSet.contains(op);
-                boolean hasNoSideEffects = inst.getRhs().getInstType() != InstructionType.CALL;
+                var rhs = inst.getRhs();
+                boolean hasNoSideEffects = (rhs.getInstType() != InstructionType.CALL  || rhs instanceof NewInstruction)    //No possible side effects
+                        && (!method.getVarTable().containsKey(op) || method.getVarTable().get(op).getScope() != VarScope.PARAMETER
+                        || !(method.getVarTable().get(op).getVarType() instanceof ArrayType));  //Check if it is a parameter and,
+                //if it is, make sure it isn't an array, else, there will be side effects because it was passed as a reference.
 
                 if(isDead && hasNoSideEffects)
                     toRemove.add(instruction);
+
             }
 
         if (toRemove.isEmpty())
@@ -46,13 +51,12 @@ public class OllirDeadCodeElimination {
         return true;
     }
 
-    private Set<String> getLocalVars() {
+    private Set<String> getLocalVarsAndParams() {
         var locals = new LinkedHashSet<String>();
         for (var entry : method.getVarTable().entrySet()) {
             var scope = entry.getValue().getScope();
-            if (scope == VarScope.LOCAL || scope == VarScope.PARAMETER) {
+            if (scope == VarScope.LOCAL || scope == VarScope.PARAMETER)
                 locals.add(entry.getKey());
-            }
         }
         return locals;
     }

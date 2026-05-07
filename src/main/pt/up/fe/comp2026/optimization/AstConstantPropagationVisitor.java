@@ -32,8 +32,6 @@ public class AstConstantPropagationVisitor extends PostorderJmmVisitor<Void, Voi
         addVisit(JmmKind.VAR_REF_EXPR, this::visitVarRef);
         addVisit(JmmKind.ASSIGN_STMT, this::visitAssign);
         addVisit(JmmKind.VAR_DECL, this::visitVarDecl);
-        //addVisit(JmmKind.FUNCTION_CALL, this::visitFunctionCall);
-        //addVisit(JmmKind.IMPLICIT_THIS_FUNCTION_CALL, this::visitImplicitThisFunctionCall);
         setDefaultVisit(this::defaultVisit);
     }
 
@@ -108,24 +106,6 @@ public class AstConstantPropagationVisitor extends PostorderJmmVisitor<Void, Voi
                 definedVars.put(varDecl.get("name"), value);
         }
         else definedVars.remove(varDecl.get("name"));
-        return null;
-    }
-
-    private Void visitFunctionCall(JmmNode functionCall, Void unused) {
-        var methodName = functionCall.get("func");
-        var target = TypeUtils.with(table).getExprType(functionCall.getChild(0));
-        var params = functionCall.getChildren(EXPR).subList(1, functionCall.getChildren(EXPR).toArray().length).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
-        var sig = new Signature(methodName, params);
-        if(target.asClass().fullyQualifiedName().equals(table.getFullyQualifiedName()))
-            replaceFunctionCall(functionCall, sig, methodName);
-        return null;
-    }
-
-    private Void visitImplicitThisFunctionCall(JmmNode functionCall, Void unused) {
-        var methodName = functionCall.get("func");
-        var params = functionCall.getChildren(EXPR).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
-        var sig = new Signature(methodName, params);
-        replaceFunctionCall(functionCall, sig, methodName);
         return null;
     }
 

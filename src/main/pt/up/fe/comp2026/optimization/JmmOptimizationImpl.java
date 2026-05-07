@@ -55,7 +55,6 @@ public class JmmOptimizationImpl implements JmmOptimization {
             System.out.println(ollirResult.getOllirCode());
         }
 
-        /*
         if(CompilerConfig.getOptimize(ollirResult.config())){
             var classUnit = ollirResult.getOllirClass();
             for(var method : classUnit.getMethods()){
@@ -73,7 +72,7 @@ public class JmmOptimizationImpl implements JmmOptimization {
                 while (changed);
             }
         }
-        */
+
         int n = CompilerConfig.getRegisterAllocation(ollirResult.config());
         if (n == -1) return ollirResult; // default: no register allocation
 

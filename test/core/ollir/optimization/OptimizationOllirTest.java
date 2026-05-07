@@ -35,7 +35,8 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantFoldingArithmetic.jmm", "simpleAdd");
         assertTrue("10+5 should fold: no BinaryOpInstruction",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("15", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("15", method, 1);
     }
 
     @Test
@@ -43,7 +44,8 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantFoldingArithmetic.jmm", "simpleMul");
         assertTrue("3*4 should fold: no BinaryOpInstruction",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("12", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("12", method, 1);
     }
 
     @Test
@@ -51,7 +53,8 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantFoldingArithmetic.jmm", "simpleSub");
         assertTrue("10-3 should fold: no BinaryOpInstruction",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("7", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("7", method, 1);
     }
 
     @Test
@@ -59,7 +62,8 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantFoldingArithmetic.jmm", "simpleDiv");
         assertTrue("20/4 should fold: no BinaryOpInstruction",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("5", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("5", method, 1);
     }
 
     @Test
@@ -67,7 +71,8 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantFoldingArithmetic.jmm", "nested");
         assertTrue("(2+3)*4 should fully fold: no BinaryOpInstruction",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("20", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("20", method, 1);
     }
 
     @Test
@@ -75,7 +80,8 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantFoldingArithmetic.jmm", "chained");
         assertTrue("1+2+3+4 should fully fold: no BinaryOpInstruction",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("10", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("10", method, 1);
     }
 
     // -------------------------------------------------------------------------
@@ -85,13 +91,15 @@ public class OptimizationOllirTest extends OllirTestEnv {
     @Test
     public void testAndFolded() {
         var method = getMethod("ConstantFoldingBoolean.jmm", "andExpr");
-        assertFindAssignmentWithLiteral("0", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("0", method, 1);
     }
 
     @Test
     public void testOrFolded() {
         var method = getMethod("ConstantFoldingBoolean.jmm", "orExpr");
-        assertFindAssignmentWithLiteral("1", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("1", method, 1);
     }
 
     @Test
@@ -99,7 +107,8 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantFoldingBoolean.jmm", "notExpr");
         assertTrue("!true should fold: no UnaryOpInstruction",
                 getInstructions(UnaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("0", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("0", method, 1);
     }
 
     @Test
@@ -107,7 +116,8 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantFoldingBoolean.jmm", "comparison");
         assertTrue("3<5 should fold: no BinaryOpInstruction",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("1", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("1", method, 1);
     }
 
     @Test
@@ -115,7 +125,8 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantFoldingBoolean.jmm", "comparisonFalse");
         assertTrue("10<5 should fold: no BinaryOpInstruction",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("0", method);
+        assertIdRefAtMost("a", method, 1);
+        assertLiteralAtLeast("0", method, 1);
     }
 
     // -------------------------------------------------------------------------
@@ -127,7 +138,9 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantPropagation.jmm", "simplePropagate");
         assertTrue("After propagation+folding: no BinaryOpInstruction expected",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("8", method);
+        assertIdRefAtMost("a", method, 1);
+        assertIdRefAtMost("b", method, 1);
+        assertLiteralAtLeast("8", method, 1);
     }
 
     @Test
@@ -135,7 +148,10 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantPropagation.jmm", "propagateThenFold");
         assertTrue("After propagation+folding: no BinaryOpInstruction expected",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("8", method);
+        assertIdRefAtMost("a", method, 1);
+        assertIdRefAtMost("b", method, 1);
+        assertIdRefAtMost("c", method, 1);
+        assertLiteralAtLeast("8", method, 1);
     }
 
     @Test
@@ -143,7 +159,9 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantPropagation.jmm", "reassignNoPropagate");
         assertTrue("After propagation+folding: no BinaryOpInstruction expected",
                 getInstructions(BinaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("13", method);
+        assertIdRefAtMost("a", method, 2);
+        assertIdRefAtMost("b", method, 1);
+        assertLiteralAtLeast("13", method, 1);
     }
 
     @Test
@@ -151,7 +169,9 @@ public class OptimizationOllirTest extends OllirTestEnv {
         var method = getMethod("ConstantPropagation.jmm", "propagateBool");
         assertTrue("After propagation+folding: no UnaryOpInstruction expected",
                 getInstructions(UnaryOpInstruction.class, method).isEmpty());
-        assertFindAssignmentWithLiteral("0", method);
+        assertIdRefAtMost("a", method, 1);
+        assertIdRefAtMost("b", method, 1);
+        assertLiteralAtLeast("0", method, 1);
     }
 
     // -------------------------------------------------------------------------
