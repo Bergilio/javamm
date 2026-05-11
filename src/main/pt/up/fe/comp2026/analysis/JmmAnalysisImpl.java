@@ -36,7 +36,8 @@ public class JmmAnalysisImpl implements JmmAnalysis {
                 new OperationTypesPass(),
                 new AssignmentsPass(),
                 new ArrayPass(),
-                new StaticFieldRefPass()
+                new StaticFieldRefPass(),
+                new StaticMethodPass()
         );
     }
 
