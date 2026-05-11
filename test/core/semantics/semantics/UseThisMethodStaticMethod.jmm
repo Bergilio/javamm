@@ -1,0 +1,12 @@
+package test;
+
+class UseThisMethodStaticMethod {
+
+    public static int foo() {
+        return this.bar();
+    }
+
+    public int bar() {
+        return 1;
+    }
+}

@@ -1,0 +1,9 @@
+package test;
+
+class StaticMethodInstanceField {
+    int a;
+
+    public static int foo() {
+        return a;
+    }
+}
