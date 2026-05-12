@@ -98,7 +98,7 @@ public class JasminGenerator {
 
         // generate class name
         var nameWithPackage = ollirResult.getOllirClass().getClassFullyQualifiedName().replace('.', '/');
-        code.append(".class ").append(nameWithPackage).append(NL).append(NL);
+        code.append(".class public ").append(nameWithPackage).append(NL).append(NL);
 
         // TODO: When you support 'extends', this must be updated
         var fullSuperClass =  "java/lang/Object";
@@ -285,7 +285,9 @@ public class JasminGenerator {
         // apply operation
         var op = switch (binaryOp.getOperation().getOpType()) {
             case ADD -> "add";
+            case SUB -> "sub";
             case MUL -> "mul";
+            case DIV -> "div";
             default -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
         };
 
