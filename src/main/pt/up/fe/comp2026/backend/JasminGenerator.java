@@ -187,30 +187,56 @@ public class JasminGenerator {
     private String generateAssign(AssignInstruction assign) {
         try {
             isInsideAssignment = true;
-
-
             var code = new StringBuilder();
 
-            // store value in the stack in destination
             var lhs = assign.getDest();
+            var rhs = assign.getRhs();
 
-            // generate code for loading what's on the right
+            if (rhs instanceof BinaryOpInstruction binOp) {
+                var iincCode = tryGenerateIinc(lhs, binOp);
+                if (iincCode != null) {
+                    return iincCode;
+                }
+            }
+
             code.append(apply(assign.getRhs()));
-
-
-            // Assume Operand
             var operand = (Operand) lhs;
-
-
-            // get register
             var reg = currentMethod.getVarTable().get(operand.getName());
-
             code.append(types.getStore(reg)).append(NL);
 
             return code.toString();
         } finally {
             isInsideAssignment = false;
         }
+    }
+    private String tryGenerateIinc(Element dest, BinaryOpInstruction binOp) {
+        if (binOp.getOperation().getOpType() != OperationType.ADD) {
+            return null;
+        }
+
+        var left = binOp.getLeftOperand();
+        var right = binOp.getRightOperand();
+
+        if (isSameOperand(dest, left) && right instanceof LiteralElement lit) {
+            int increment = Integer.parseInt(lit.getLiteral());
+            int reg = currentMethod.getVarTable().get(((Operand)dest).getName()).getVirtualReg();
+            return "iinc " + reg + " " + increment + NL;
+        }
+
+        if (left instanceof LiteralElement lit && isSameOperand(dest, right)) {
+            int increment = Integer.parseInt(lit.getLiteral());
+            int reg = currentMethod.getVarTable().get(((Operand)dest).getName()).getVirtualReg();
+            return "iinc " + reg + " " + increment + NL;
+        }
+
+        return null;
+    }
+
+    private boolean isSameOperand(Element e1, Element e2) {
+        if (!(e1 instanceof Operand op1) || !(e2 instanceof Operand op2)) {
+            return false;
+        }
+        return op1.getName().equals(op2.getName());
     }
 
     private String generateSingleOp(SingleOpInstruction singleOp) {
