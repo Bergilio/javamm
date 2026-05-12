@@ -111,7 +111,7 @@ public class JasminUtils {
             return "sipush " + value;
         }
 
-        return "ldc " + valu;
+        return "ldc " + value;
     }
 
     public String getMethodDescriptor(Method method) {
