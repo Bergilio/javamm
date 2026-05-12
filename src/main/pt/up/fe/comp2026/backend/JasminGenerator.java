@@ -218,7 +218,23 @@ public class JasminGenerator {
     }
 
     private String generateLiteral(LiteralElement literal) {
-        return "ldc " + literal.getLiteral() + NL;
+        var code = new StringBuilder();
+
+        if (literal.getType() instanceof BuiltinType bt) {
+            if (bt.getKind() == BuiltinKind.INT32) {
+                int value = Integer.parseInt(literal.getLiteral());
+                code.append(types.getConstInstruction(value)).append(NL);
+            } else if (bt.getKind() == BuiltinKind.BOOLEAN) {
+                int value = literal.getLiteral().equals("true") ? 1 : 0;
+                code.append(types.getConstInstruction(value)).append(NL);
+            } else {
+                code.append("ldc ").append(literal.getLiteral()).append(NL);
+            }
+        } else {
+            code.append("ldc ").append(literal.getLiteral()).append(NL);
+        }
+
+        return code.toString();
     }
 
     private String generateOperand(Operand operand) {
