@@ -41,19 +41,43 @@ public class JasminUtils {
 
 
 
+    // Type prefix expansion (expanding int);    
     public String getTypePrefix(Type type) {
-        System.out.println("[TODO] JasminUtils.getTypePrefix(): Assumes it is always int, needs to be expanded");
-        return "i";
+
+        if (type istanceof BuiltinType builtintype) {
+            return switch (builtintype.getKind()) {
+                case INT32, BOOLEAN -> "I";
+                case VOID -> "";
+                default -> "A";
+            };
+        }
+        if (type instanceof ArrayType arrayType) return "A";
+        return "A";
+        }
+
+        //System.out.println("[TODO] JasminUtils.getTypePrefix(): Assumes it is always int, needs to be expanded");
+        //return "i"; - Code before type expansion
     }
 
+    // Type descriptor expansion 
     public String getTypeDescriptor(Type type) {
-
         if (type instanceof BuiltinType builtinType) {
             return switch (builtinType.getKind()) {
                 case INT32 -> "I";
+                case BOOLEAN -> "Z";
+                case VOID -> "V";
+                case STRING -> "Ljava/lang/String;";
                 default ->
                         throw new RuntimeException("Not implemented for element type '" + builtinType.getKind() + "'");
             };
+        }
+        if (type instanceof ArrayType arrayType) {
+            return "[" + getTypeDescriptor(arrayType.getElementType());
+        }
+        if (type instanceof ClassType classType) {
+            var name = ct.getName();
+            var full = fullClassnames.get(name);
+            return "L" +full.replace('.', '/') + ";";   
         }
 
         throw new RuntimeException("Not implemented for element type '" + type + "'");
