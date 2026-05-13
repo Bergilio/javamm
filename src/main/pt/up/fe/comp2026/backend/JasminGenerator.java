@@ -111,8 +111,20 @@ public class JasminGenerator {
             var staticMod  = field.isStaticField() ? "static " : "";
             var fieldName  = field.getFieldName();
             var descriptor = types.getTypeDescriptor(field.getFieldType());
-            code.append(".field ").append(mod).append(staticMod)
-                    .append(fieldName).append(" ").append(descriptor).append(NL);
+            code.append(".field ");
+
+            if (!mod.isEmpty()) {
+                code.append(mod);
+            }
+
+            if (!staticMod.isEmpty()) {
+                code.append(staticMod);
+            }
+
+            code.append(fieldName)
+                .append(" ")
+                .append(descriptor)
+                .append(NL);
         }
 
         // generate a single constructor method
