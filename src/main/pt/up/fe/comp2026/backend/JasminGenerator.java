@@ -101,7 +101,26 @@ public class JasminGenerator {
         code.append(".class public ").append(nameWithPackage).append(NL).append(NL);
 
         // TODO: When you support 'extends', this must be updated
-        var fullSuperClass =  "java/lang/Object";
+        var superClassName = ollirResult.getOllirClass().getSuperClass();
+        var fullSuperClass = "java/lang/Object";  // default
+
+        if (superClassName != null && !superClassName.isEmpty() && !superClassName.equals("Object")) {
+            var imports = ollirResult.getOllirClass().getImports();
+            String fullName = null;
+
+            for (var importName : imports) {
+                if (importName.endsWith("." + superClassName) || importName.equals(superClassName)) {
+                    fullName = importName;
+                    break;
+                }
+            }
+
+            if (fullName == null) {
+                fullName = "java.lang." + superClassName;
+            }
+
+            fullSuperClass = fullName.replace('.', '/');
+        }
 
         code.append(".super ").append(fullSuperClass).append(NL);
         
