@@ -104,6 +104,16 @@ public class JasminGenerator {
         var fullSuperClass =  "java/lang/Object";
 
         code.append(".super ").append(fullSuperClass).append(NL);
+        
+        // Generate class fields
+        for (var field : classUnit.getFields()) {
+            var mod        = types.getModifier(field.getFieldAccessModifier());
+            var staticMod  = field.isStaticField() ? "static " : "";
+            var fieldName  = field.getFieldName();
+            var descriptor = types.getTypeDescriptor(field.getFieldType());
+            code.append(".field ").append(mod).append(staticMod)
+                    .append(fieldName).append(" ").append(descriptor).append(NL);
+        }
 
         // generate a single constructor method
         var defaultConstructor = """
