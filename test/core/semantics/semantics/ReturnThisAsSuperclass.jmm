@@ -1,0 +1,11 @@
+package test;
+
+import examples.Quicksort;
+
+class ReturnThisAsSuperclass extends Quicksort {
+
+    public Quicksort getSelf() {
+        return this;
+    }
+
+}
