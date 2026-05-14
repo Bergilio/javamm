@@ -1,0 +1,10 @@
+package test;
+
+import examples.Quicksort;
+
+class InvalidReturnTypeOverride extends Quicksort {
+
+    public int quicksort(int[] a) {
+        return 5;
+    }
+}

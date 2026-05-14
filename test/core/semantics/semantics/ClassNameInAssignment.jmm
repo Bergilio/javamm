@@ -1,0 +1,9 @@
+package test;
+import examples.Quicksort;
+
+class ClassNameInAssignment {
+    public int foo() {
+        Quicksort = 5;
+        return 0;
+    }
+}

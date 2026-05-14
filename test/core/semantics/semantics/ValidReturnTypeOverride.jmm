@@ -1,0 +1,10 @@
+package core.semantics.semantics;
+
+import examples.Quicksort;
+
+class ValidReturnTypeOverride extends Quicksort {
+
+    public boolean quicksort(int[] a) {
+        return false;
+    }
+}
