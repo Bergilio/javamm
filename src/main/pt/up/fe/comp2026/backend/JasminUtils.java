@@ -23,9 +23,9 @@ public class JasminUtils {
         fullClassnames.put("this", ollirResult.getOllirClass().getClassName());
 
         for (var fullImport : ollirResult.getOllirClass().getImports()) {
-            var splitted = fullImport.split("\\.");
+            var split = fullImport.split("\\.");
             // Last element will be the key
-            var key = splitted[splitted.length - 1];
+            var key = split[split.length - 1];
             fullClassnames.put(key, fullImport.replace('.', '/'));
         }
     }
@@ -50,8 +50,6 @@ public class JasminUtils {
                 case BOOLEAN -> "Z";
                 case VOID -> "V";
                 case STRING -> "Ljava/lang/String;";
-                default ->
-                        throw new RuntimeException("Not implemented for element type '" + builtinType.getKind() + "'");
             };
         }
 
@@ -61,7 +59,10 @@ public class JasminUtils {
 
         if (type instanceof ClassType classType) {
             var name = classType.getName();
-            var full = fullClassnames.getOrDefault(name, name);
+            var full = fullClassnames.get(name);
+            if(full == null) {
+                full = "java/lang/" + name;
+            }
             return "L" + full.replace('.', '/') + ";";
         }
 
@@ -71,7 +72,7 @@ public class JasminUtils {
     public String getModifier(AccessModifier accessModifier) {
         // Default access modifier is empty string
         if (accessModifier == AccessModifier.DEFAULT) {
-            return "";
+            return "public ";
         }
 
         return accessModifier.name().toLowerCase() + " ";

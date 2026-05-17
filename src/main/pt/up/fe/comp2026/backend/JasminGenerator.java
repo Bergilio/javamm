@@ -6,6 +6,7 @@ import org.specs.comp.ollir.tree.TreeNode;
 import org.specs.comp.ollir.type.ArrayType;
 import org.specs.comp.ollir.type.BuiltinKind;
 import org.specs.comp.ollir.type.BuiltinType;
+import org.specs.comp.ollir.type.ClassType;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
 import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp2026.optimization.OptUtils;
@@ -63,6 +64,7 @@ public class JasminGenerator {
         generators.put(Operand.class, this::generateOperand);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
+        generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
     }
 
 
@@ -98,7 +100,7 @@ public class JasminGenerator {
 
         // generate class name
         var nameWithPackage = ollirResult.getOllirClass().getClassFullyQualifiedName().replace('.', '/');
-        code.append(".class public ").append(nameWithPackage).append(NL).append(NL);
+        code.append(".class public ").append(nameWithPackage).append(NL);
 
         // TODO: When you support 'extends', this must be updated
         var superClassName = ollirResult.getOllirClass().getSuperClass();
@@ -146,38 +148,51 @@ public class JasminGenerator {
                     .append(descriptor)
                     .append(NL);
         }
-
-        // generate a single constructor method
-        var defaultConstructor = """
-                ;default constructor
-                .method public <init>()V
-                    aload_0
-                    invokespecial %s/<init>()V
-                    return
-                .end method
-                """.formatted(fullSuperClass);
-        code.append(defaultConstructor);
-
-        // generate code for all other methods
-        for (var method : ollirResult.getOllirClass().getMethods()) {
-
-            // Ignore constructor, since there is always one constructor
-            // that receives no arguments, and has been already added
-            // previously
-            if (method.isConstructMethod()) {
-                continue;
-            }
-
+        for (var method : ollirResult.getOllirClass().getMethods())
             code.append(apply(method));
-        }
 
+
+        return code.toString();
+    }
+
+    private int calculateLocals() {
+        int locals = 0;
+
+        for(var desc:currentMethod.getVarTable().values())
+            if(locals < desc.getVirtualReg() + 1)
+                locals = desc.getVirtualReg() + 1;
+        return locals;
+    }
+
+    private String generateConstructor(Method method) {
+        utils = new OptUtils(null);
+        currentMethod = method;
+        var code = new StringBuilder();
+        code.append(".method ").append(types.getModifier(currentMethod.getMethodAccessModifier()))
+                .append(method.getMethodName()).append("()")
+                .append(types.getTypeDescriptor(method.getReturnType())).append(NL)
+                .append(TAB).append(".limit locals ").append(calculateLocals()).append(NL)
+                .append(TAB).append(".limit stack 1\n"); //Temp only
+
+        for (var inst : method.getInstructions()) {
+            var instCode = StringLines.getLines(apply(inst)).stream()
+                    .collect(Collectors.joining(NL + TAB, TAB, NL));
+            code.append(instCode);
+        }
+        code.append(TAB).append("return\n").append(".end method\n");
         return code.toString();
     }
 
     private String generateMethod(Method method) {
         //System.out.println("STARTING METHOD " + method.getMethodName());
         // set method
+
+        if(method.isConstructMethod()) {
+            return generateConstructor(method);
+        }
+
         currentMethod = method;
+        int locals = calculateLocals();
 
         // Initialize utils, to have fresh labels
         utils = new OptUtils(null);
@@ -185,7 +200,7 @@ public class JasminGenerator {
         var code = new StringBuilder();
 
         // TODO: Modifier is hard-coded
-        var modifier = types.getModifier(AccessModifier.PUBLIC);
+        var modifier = types.getModifier(currentMethod.getMethodAccessModifier());
 
 
         var staticMod = method.isStaticMethod() ? "static " : "";
@@ -200,11 +215,11 @@ public class JasminGenerator {
 
         code.append("\n.method ").append(modifier)
                 .append(staticMod)
-                .append(methodName)
-                .append("(" + params + ")" + returnType).append(NL);
+                .append(methodName).append("(").append(params).append(")").append(returnType).append(NL);
 
 
         var bodyCode = new StringBuilder();
+        bodyCode.append(".limit locals ").append(locals).append(NL);
         for (var inst : method.getInstructions()) {
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
@@ -214,7 +229,7 @@ public class JasminGenerator {
 
         // Add limits
         code.append(TAB).append(".limit stack 99").append(NL);
-        code.append(TAB).append(".limit locals 99").append(NL);
+        //code.append(TAB).append(".limit locals 99").append(NL);
 
         code.append(TAB).append(bodyCode);
 
@@ -351,6 +366,14 @@ public class JasminGenerator {
         code.append(typePrefix).append("return").append(NL);
 
         return code.toString();
+    }
+
+    private String generateInvokeSpecial(InvokeSpecialInstruction invokeInst) {
+        var operand = ((ClassType) invokeInst.getOperands().getFirst().getType()).getName();
+        var method = ((LiteralElement) invokeInst.getChildren().getLast()).getLiteral();
+        return "aload_0\ninvokespecial " +
+                operand.replace('.', '/') + "/" +
+                method + "()" + "V\n";
     }
 
 }
