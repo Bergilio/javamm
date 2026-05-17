@@ -65,6 +65,7 @@ public class JasminGenerator {
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
+        generators.put(NewInstruction.class, this::generateNew);
     }
 
 
@@ -136,14 +137,14 @@ public class JasminGenerator {
             code.append(".field ");
 
             if (!mod.isEmpty()) {
-                code.append(mod).append(" ");
+                code.append(mod);
             }
 
             if (!staticMod.isEmpty()) {
                 code.append(staticMod);
             }
 
-            code.append(fieldName)
+            code.append('\'').append(fieldName).append('\'')
                     .append(" ")
                     .append(descriptor)
                     .append(NL);
@@ -369,11 +370,52 @@ public class JasminGenerator {
     }
 
     private String generateInvokeSpecial(InvokeSpecialInstruction invokeInst) {
-        var operand = ((ClassType) invokeInst.getOperands().getFirst().getType()).getName();
+        var code = new StringBuilder();
+
+        var target = invokeInst.getOperands().getFirst();
+        code.append(apply(target));
+
+        var params = new StringBuilder();
+        for (int i = 1; i < invokeInst.getChildren().size() - 1; i++) { //The last one is the constructor name, I believe
+            var arg = invokeInst.getOperands().get(i);
+            code.append(apply(arg));
+            params.append(types.getTypeDescriptor(arg.getType()));
+        }
+
+        var className = getFullClassName(((ClassType) target.getType()).getName());
         var method = ((LiteralElement) invokeInst.getChildren().getLast()).getLiteral();
-        return "aload_0\ninvokespecial " +
-                operand.replace('.', '/') + "/" +
-                method + "()" + "V\n";
+
+        // 5. Build the invokespecial instruction with the correct parameters
+        code.append("invokespecial ").append(className.replace('.', '/'))
+                .append("/").append(method).append("(").append(params).append(")V\n");
+
+        return code.toString();
     }
 
+    private String generateNew(NewInstruction newInstruction) {
+        var operand = newInstruction.getOperands().getFirst();
+        var code = new StringBuilder();
+        if(operand.getType() instanceof ClassType) {
+            var name = ((ClassType) operand.getType()).getName();
+            code.append("new ").append(getFullClassName(name)).append(NL);
+        }
+
+        return code.toString();
+    }
+
+    private String getFullClassName(String name) {
+        var imports = ollirResult.getOllirClass().getImports();
+
+        if(name.contains("java.lang.") || name.contains("java/lang/"))
+            return name.replace('.', '/');
+
+        if(name.equals("this") || name.equals(ollirResult.getOllirClass().getClassName()))
+            return ollirResult.getOllirClass().getClassFullyQualifiedName().replace('.', '/');
+
+        for (var importName : imports)
+            if (importName.endsWith("." + name) || importName.equals(name))
+                return importName.replace('.', '/');
+
+        return "java/lang/" + name;
+    }
 }
