@@ -27,7 +27,7 @@ public class OverrideSemanticPass extends AnalysisVisitor {
         var actualReturn = TypeUtils.with(table).getMethodType(methodDecl);
         var expectedReturn = superMethod.get().returnType();
 
-        if (!TypeUtils.with(table).isAssignable(actualReturn, expectedReturn))
+        if (!TypeUtils.with(table).isAssignable(expectedReturn, actualReturn))
             addReport(newError(methodDecl, "Method '" + methodDecl.get("name") +
                     "' overrides a method from '" + superFQN +
                     "' with incompatible return type"));

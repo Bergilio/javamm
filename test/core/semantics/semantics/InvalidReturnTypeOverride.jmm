@@ -1,10 +1,8 @@
 package test;
 
-import examples.Quicksort;
+class InvalidReturnTypeOverride extends Object {
 
-class InvalidReturnTypeOverride extends Quicksort {
-
-    public int quicksort(int[] L) {
-        return 5;
+    public Object toString() {
+        return new Object();
     }
 }

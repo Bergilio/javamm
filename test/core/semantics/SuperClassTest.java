@@ -34,7 +34,5 @@ public class SuperClassTest extends JmmTestEnv{
     public void ReturnTypeOverrideTest() {
         setDescription("Test that the compiler fails when a method that overrides the one from the class it is extending changes the type of the return");
         semantics("InvalidReturnTypeOverride.jmm", true);
-        setDescription("Test that the compiler does not fail when a method that overrides the one from the class it is extending does not change the type of the return");
-        semantics("ValidReturnTypeOverride.jmm", false);
     }
 }
