@@ -4,7 +4,7 @@ import examples.Quicksort;
 
 class InvalidReturnTypeOverride extends Quicksort {
 
-    public int quicksort(int[] a) {
+    public int quicksort(int[] L) {
         return 5;
     }
 }

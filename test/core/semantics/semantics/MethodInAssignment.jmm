@@ -1,0 +1,9 @@
+package test;
+
+class ClassNameInAssignment {
+    public void bar() {}
+    public int foo() {
+        bar() = 5;
+        return 0;
+    }
+}

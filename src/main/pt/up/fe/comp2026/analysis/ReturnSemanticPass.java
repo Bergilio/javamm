@@ -45,7 +45,7 @@ public class ReturnSemanticPass extends AnalysisVisitor {
             return null;
         var expr = returnStmt.getChild(0);
         var actualType = TypeUtils.with(table).getExprType(expr);
-        if (!TypeUtils.with(table).isAssignable(actualType, expectedType))
+        if (!TypeUtils.with(table).isAssignable(expectedType, actualType))
             addReport(newError(returnStmt, "Return type mismatch"));
 
         return null;

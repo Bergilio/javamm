@@ -15,13 +15,19 @@ public class SuperClassTest extends JmmTestEnv{
     @Test
     public void ReturnThisAsSuperclassTest() {
         setDescription("Test that it is possible to return 'this' as a superclass");
-        semantics("ReturnThisAsSuperclass.jmm", true);
+        semantics("ReturnThisAsSuperclass.jmm", false);
     }
 
     @Test
     public void ClassNameInAssignmentTest() {
         setDescription("Test that is not possible to use a class name in the left hand of an assignment");
         semantics("ClassNameInAssignment.jmm", true);
+    }
+
+    @Test
+    public void MethodInAssignment() {
+        setDescription("Test that it is not possible to have a method call on the lh of an assignment");
+        semantics("MethodInAssignment.jmm", true);
     }
 
     @Test
