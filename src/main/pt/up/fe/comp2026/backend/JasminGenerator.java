@@ -38,6 +38,8 @@ public class JasminGenerator {
 
     private Method currentMethod;
 
+    private int labelCounter;
+
     boolean isInsideAssignment;
 
     private final JasminUtils types;
@@ -51,6 +53,7 @@ public class JasminGenerator {
         code = null;
         currentMethod = null;
         isInsideAssignment = false;
+        labelCounter = 0;
 
         types = new JasminUtils(ollirResult);
         // Initialize everytime we start a method
@@ -62,6 +65,7 @@ public class JasminGenerator {
         generators.put(SingleOpInstruction.class, this::generateSingleOp);
         generators.put(LiteralElement.class, this::generateLiteral);
         generators.put(Operand.class, this::generateOperand);
+        generators.put(UnaryOpInstruction.class, this::generateUnaryOp);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(GotoInstruction.class, this::generateGoto);
         generators.put(SingleOpCondInstruction.class, this::generateSingleOpCond);
@@ -132,7 +136,7 @@ public class JasminGenerator {
         }
 
         code.append(".super ").append(fullSuperClass).append(NL);
-        
+
         // Generate class fields
         for (var field : classUnit.getFields()) {
             var mod        = types.getModifier(field.getFieldAccessModifier());
@@ -337,28 +341,52 @@ public class JasminGenerator {
         return types.getLoad(reg) + NL;
     }
 
+    private String generateUnaryOp(UnaryOpInstruction unaryOp) {
+        var code = new StringBuilder();
+        code.append(apply(unaryOp.getOperand()));
+        code.append("iconst_1").append(NL);
+        code.append("ixor").append(NL);
+        return code.toString();
+    }
 
     private String generateBinaryOp(BinaryOpInstruction binaryOp) {
-
         var code = new StringBuilder();
-
-        // load values on the left and on the right
         code.append(apply(binaryOp.getLeftOperand()));
         code.append(apply(binaryOp.getRightOperand()));
 
-
         var typePrefix = types.getTypePrefix(binaryOp.getOperation().getTypeInfo());
+        var opType = binaryOp.getOperation().getOpType();
 
-        // apply operation
-        var op = switch (binaryOp.getOperation().getOpType()) {
-            case ADD -> "add";
-            case SUB -> "sub";
-            case MUL -> "mul";
-            case DIV -> "div";
-            default -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
-        };
-
-        code.append(typePrefix + op).append(NL);
+        switch (opType) {
+            case ADD -> code.append(typePrefix).append("add").append(NL);
+            case SUB -> code.append(typePrefix).append("sub").append(NL);
+            case MUL -> code.append(typePrefix).append("mul").append(NL);
+            case DIV -> code.append(typePrefix).append("div").append(NL);
+            case REM -> code.append(typePrefix).append("rem").append(NL);
+            case BITWISE_AND, LOGICAL_AND -> code.append(typePrefix).append("and").append(NL);
+            case BITWISE_OR,  LOGICAL_OR  -> code.append(typePrefix).append("or").append(NL);
+            case XOR -> code.append(typePrefix).append("xor").append(NL);
+            case LTH, GTH, LTE, GTE, EQ, NEQ -> {
+                var trueLabel = "cmp_true_" + (labelCounter++);
+                var endLabel  = "cmp_end_"  + (labelCounter++);
+                var branch = switch (opType) {
+                    case LTH -> "if_icmplt";
+                    case GTH -> "if_icmpgt";
+                    case LTE -> "if_icmple";
+                    case GTE -> "if_icmpge";
+                    case EQ  -> "if_icmpeq";
+                    case NEQ -> "if_icmpne";
+                    default  -> throw new RuntimeException("unreachable");
+                };
+                code.append(branch).append(" ").append(trueLabel).append(NL)
+                        .append("iconst_0").append(NL)
+                        .append("goto ").append(endLabel).append(NL)
+                        .append(trueLabel).append(":").append(NL)
+                        .append("iconst_1").append(NL)
+                        .append(endLabel).append(":").append(NL);
+            }
+            default -> throw new NotImplementedException(opType);
+        }
 
         return code.toString();
     }
