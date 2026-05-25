@@ -1,8 +1,10 @@
 package test;
 
-class InvalidReturnTypeOverride extends Object {
+import examples.foo.bar.A;
 
-    public Object toString() {
-        return new Object();
+class B extends A {
+
+    public boolean foo() {
+        return true;
     }
 }

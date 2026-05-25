@@ -64,6 +64,8 @@ public class JasminGenerator {
         generators.put(Operand.class, this::generateOperand);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
+        generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
+        generators.put(InvokeStaticInstruction.class, this::generateInvokeStatic);
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
         generators.put(NewInstruction.class, this::generateNew);
     }
@@ -350,6 +352,53 @@ public class JasminGenerator {
         };
 
         code.append(typePrefix + op).append(NL);
+
+        return code.toString();
+    }
+
+    private String generateInvokeVirtual(InvokeVirtualInstruction invokeInst) {
+        var code = new StringBuilder();
+        var caller = invokeInst.getCaller();
+        code.append(apply(caller));
+
+        var paramDesc = new StringBuilder();
+        for (var arg : invokeInst.getArguments()) {
+            code.append(apply(arg));
+            paramDesc.append(types.getTypeDescriptor(arg.getType()));
+        }
+
+        var className = getFullClassName(((ClassType) caller.getType()).getName());
+        var methodName = ((LiteralElement) invokeInst.getMethodName()).getLiteral();
+        var returnDesc = types.getTypeDescriptor(invokeInst.getReturnType());
+
+        code.append("invokevirtual ").append(className.replace('.', '/'))
+                .append("/").append(methodName).append("(").append(paramDesc).append(")").append(returnDesc).append(NL);
+
+        return code.toString();
+    }
+
+    private String generateInvokeStatic(InvokeStaticInstruction invokeInst) {
+        var code = new StringBuilder();
+
+        var paramDesc = new StringBuilder();
+        for (var arg : invokeInst.getArguments()) {
+            code.append(apply(arg));
+            paramDesc.append(types.getTypeDescriptor(arg.getType()));
+        }
+
+        var callerType = invokeInst.getCaller().getType();
+        String className;
+        if (callerType instanceof ClassType ct)
+            className = getFullClassName(ct.getName());
+        else
+            className = getFullClassName(((Operand) invokeInst.getCaller()).getName());
+
+        var methodName = ((LiteralElement) invokeInst.getMethodName()).getLiteral();
+        var returnDesc = types.getTypeDescriptor(invokeInst.getReturnType());
+
+        code.append("invokestatic ").append(className.replace('.', '/'))
+                .append("/").append(methodName)
+                .append("(").append(paramDesc).append(")").append(returnDesc).append(NL);
 
         return code.toString();
     }
