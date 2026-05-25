@@ -1,9 +1,10 @@
 package test;
 
-class ClassNameInAssignment {
-    public void bar() {}
-    public int foo() {
-        bar() = 5;
-        return 0;
+class TargetKinds {
+    TargetKinds id() {
+        return this;
+    }
+    void update() {
+        id() = new TargetKinds();
     }
 }

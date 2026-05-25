@@ -38,6 +38,8 @@ public class JasminGenerator {
 
     private Method currentMethod;
 
+    private int labelCounter;
+
     boolean isInsideAssignment;
 
     private final JasminUtils types;
@@ -51,6 +53,7 @@ public class JasminGenerator {
         code = null;
         currentMethod = null;
         isInsideAssignment = false;
+        labelCounter = 0;
 
         types = new JasminUtils(ollirResult);
         // Initialize everytime we start a method
@@ -62,8 +65,14 @@ public class JasminGenerator {
         generators.put(SingleOpInstruction.class, this::generateSingleOp);
         generators.put(LiteralElement.class, this::generateLiteral);
         generators.put(Operand.class, this::generateOperand);
+        generators.put(UnaryOpInstruction.class, this::generateUnaryOp);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
+        generators.put(GotoInstruction.class, this::generateGoto);
+        generators.put(SingleOpCondInstruction.class, this::generateSingleOpCond);
+        generators.put(OpCondInstruction.class, this::generateOpCond);
         generators.put(ReturnInstruction.class, this::generateReturn);
+        generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
+        generators.put(InvokeStaticInstruction.class, this::generateInvokeStatic);
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
         generators.put(NewInstruction.class, this::generateNew);
         generators.put(ArrayLengthInstruction.class, this::generateArrayLength);
@@ -127,7 +136,7 @@ public class JasminGenerator {
         }
 
         code.append(".super ").append(fullSuperClass).append(NL);
-        
+
         // Generate class fields
         for (var field : classUnit.getFields()) {
             var mod        = types.getModifier(field.getFieldAccessModifier());
@@ -223,6 +232,9 @@ public class JasminGenerator {
         var bodyCode = new StringBuilder();
         bodyCode.append(".limit locals ").append(locals).append(NL);
         for (var inst : method.getInstructions()) {
+            for (var label : method.getLabels(inst))
+                bodyCode.append(label).append(":").append(NL);
+
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
 
@@ -329,28 +341,128 @@ public class JasminGenerator {
         return types.getLoad(reg) + NL;
     }
 
+    private String generateUnaryOp(UnaryOpInstruction unaryOp) {
+        var code = new StringBuilder();
+        code.append(apply(unaryOp.getOperand()));
+        code.append("iconst_1").append(NL);
+        code.append("ixor").append(NL);
+        return code.toString();
+    }
 
     private String generateBinaryOp(BinaryOpInstruction binaryOp) {
-
         var code = new StringBuilder();
-
-        // load values on the left and on the right
         code.append(apply(binaryOp.getLeftOperand()));
         code.append(apply(binaryOp.getRightOperand()));
 
-
         var typePrefix = types.getTypePrefix(binaryOp.getOperation().getTypeInfo());
+        var opType = binaryOp.getOperation().getOpType();
 
-        // apply operation
-        var op = switch (binaryOp.getOperation().getOpType()) {
-            case ADD -> "add";
-            case SUB -> "sub";
-            case MUL -> "mul";
-            case DIV -> "div";
-            default -> throw new NotImplementedException(binaryOp.getOperation().getOpType());
+        switch (opType) {
+            case ADD -> code.append(typePrefix).append("add").append(NL);
+            case SUB -> code.append(typePrefix).append("sub").append(NL);
+            case MUL -> code.append(typePrefix).append("mul").append(NL);
+            case DIV -> code.append(typePrefix).append("div").append(NL);
+            case REM -> code.append(typePrefix).append("rem").append(NL);
+            case BITWISE_AND, LOGICAL_AND -> code.append(typePrefix).append("and").append(NL);
+            case BITWISE_OR,  LOGICAL_OR  -> code.append(typePrefix).append("or").append(NL);
+            case XOR -> code.append(typePrefix).append("xor").append(NL);
+            case LTH, GTH, LTE, GTE, EQ, NEQ -> {
+                var trueLabel = "cmp_true_" + (labelCounter++);
+                var endLabel  = "cmp_end_"  + (labelCounter++);
+                var branch = switch (opType) {
+                    case LTH -> "if_icmplt";
+                    case GTH -> "if_icmpgt";
+                    case LTE -> "if_icmple";
+                    case GTE -> "if_icmpge";
+                    case EQ  -> "if_icmpeq";
+                    case NEQ -> "if_icmpne";
+                    default  -> throw new RuntimeException("unreachable");
+                };
+                code.append(branch).append(" ").append(trueLabel).append(NL)
+                        .append("iconst_0").append(NL)
+                        .append("goto ").append(endLabel).append(NL)
+                        .append(trueLabel).append(":").append(NL)
+                        .append("iconst_1").append(NL)
+                        .append(endLabel).append(":").append(NL);
+            }
+            default -> throw new NotImplementedException(opType);
+        }
+
+        return code.toString();
+    }
+
+    private String generateGoto(GotoInstruction gotoInst) {
+        return "goto " + gotoInst.getLabel() + NL;
+    }
+
+    private String generateSingleOpCond(SingleOpCondInstruction condInst) {
+        var code = new StringBuilder();
+        code.append(apply(condInst.getCondition().getSingleOperand()));
+        code.append("ifne ").append(condInst.getLabel()).append(NL);
+        return code.toString();
+    }
+
+    private String generateOpCond(OpCondInstruction condInst) {
+        var code = new StringBuilder();
+        var cond = (BinaryOpInstruction) condInst.getCondition();
+        code.append(apply(cond.getLeftOperand()));
+        code.append(apply(cond.getRightOperand()));
+        var branchInstr = switch (cond.getOperation().getOpType()) {
+            case LTH -> "if_icmplt";
+            case GTH -> "if_icmpgt";
+            case LTE -> "if_icmple";
+            case GTE -> "if_icmpge";
+            case EQ  -> "if_icmpeq";
+            case NEQ -> "if_icmpne";
+            default  -> throw new RuntimeException("Unknown condition op: " + cond.getOperation().getOpType());
         };
+        code.append(branchInstr).append(" ").append(condInst.getLabel()).append(NL);
+        return code.toString();
+    }
 
-        code.append(typePrefix + op).append(NL);
+    private String generateInvokeVirtual(InvokeVirtualInstruction invokeInst) {
+        var code = new StringBuilder();
+        var caller = invokeInst.getCaller();
+        code.append(apply(caller));
+
+        var paramDesc = new StringBuilder();
+        for (var arg : invokeInst.getArguments()) {
+            code.append(apply(arg));
+            paramDesc.append(types.getTypeDescriptor(arg.getType()));
+        }
+
+        var className = getFullClassName(((ClassType) caller.getType()).getName());
+        var methodName = ((LiteralElement) invokeInst.getMethodName()).getLiteral();
+        var returnDesc = types.getTypeDescriptor(invokeInst.getReturnType());
+
+        code.append("invokevirtual ").append(className.replace('.', '/'))
+                .append("/").append(methodName).append("(").append(paramDesc).append(")").append(returnDesc).append(NL);
+
+        return code.toString();
+    }
+
+    private String generateInvokeStatic(InvokeStaticInstruction invokeInst) {
+        var code = new StringBuilder();
+
+        var paramDesc = new StringBuilder();
+        for (var arg : invokeInst.getArguments()) {
+            code.append(apply(arg));
+            paramDesc.append(types.getTypeDescriptor(arg.getType()));
+        }
+
+        var callerType = invokeInst.getCaller().getType();
+        String className;
+        if (callerType instanceof ClassType ct)
+            className = getFullClassName(ct.getName());
+        else
+            className = getFullClassName(((Operand) invokeInst.getCaller()).getName());
+
+        var methodName = ((LiteralElement) invokeInst.getMethodName()).getLiteral();
+        var returnDesc = types.getTypeDescriptor(invokeInst.getReturnType());
+
+        code.append("invokestatic ").append(className.replace('.', '/'))
+                .append("/").append(methodName)
+                .append("(").append(paramDesc).append(")").append(returnDesc).append(NL);
 
         return code.toString();
     }
