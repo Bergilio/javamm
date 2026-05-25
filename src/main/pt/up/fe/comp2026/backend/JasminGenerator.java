@@ -63,6 +63,9 @@ public class JasminGenerator {
         generators.put(LiteralElement.class, this::generateLiteral);
         generators.put(Operand.class, this::generateOperand);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
+        generators.put(GotoInstruction.class, this::generateGoto);
+        generators.put(SingleOpCondInstruction.class, this::generateSingleOpCond);
+        generators.put(OpCondInstruction.class, this::generateOpCond);
         generators.put(ReturnInstruction.class, this::generateReturn);
         generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
         generators.put(InvokeStaticInstruction.class, this::generateInvokeStatic);
@@ -224,6 +227,9 @@ public class JasminGenerator {
         var bodyCode = new StringBuilder();
         bodyCode.append(".limit locals ").append(locals).append(NL);
         for (var inst : method.getInstructions()) {
+            for (var label : method.getLabels(inst))
+                bodyCode.append(label).append(":").append(NL);
+
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
 
@@ -353,6 +359,35 @@ public class JasminGenerator {
 
         code.append(typePrefix + op).append(NL);
 
+        return code.toString();
+    }
+
+    private String generateGoto(GotoInstruction gotoInst) {
+        return "goto " + gotoInst.getLabel() + NL;
+    }
+
+    private String generateSingleOpCond(SingleOpCondInstruction condInst) {
+        var code = new StringBuilder();
+        code.append(apply(condInst.getCondition().getSingleOperand()));
+        code.append("ifne ").append(condInst.getLabel()).append(NL);
+        return code.toString();
+    }
+
+    private String generateOpCond(OpCondInstruction condInst) {
+        var code = new StringBuilder();
+        var cond = (BinaryOpInstruction) condInst.getCondition();
+        code.append(apply(cond.getLeftOperand()));
+        code.append(apply(cond.getRightOperand()));
+        var branchInstr = switch (cond.getOperation().getOpType()) {
+            case LTH -> "if_icmplt";
+            case GTH -> "if_icmpgt";
+            case LTE -> "if_icmple";
+            case GTE -> "if_icmpge";
+            case EQ  -> "if_icmpeq";
+            case NEQ -> "if_icmpne";
+            default  -> throw new RuntimeException("Unknown condition op: " + cond.getOperation().getOpType());
+        };
+        code.append(branchInstr).append(" ").append(condInst.getLabel()).append(NL);
         return code.toString();
     }
 
