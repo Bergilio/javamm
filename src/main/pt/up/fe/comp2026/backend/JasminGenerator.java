@@ -66,6 +66,7 @@ public class JasminGenerator {
         generators.put(ReturnInstruction.class, this::generateReturn);
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
         generators.put(NewInstruction.class, this::generateNew);
+        generators.put(ArrayLengthInstruction.class, this::generateArrayLength);
     }
 
 
@@ -417,5 +418,11 @@ public class JasminGenerator {
                 return importName.replace('.', '/');
 
         return "java/lang/" + name;
+    }
+
+    private String generateArrayLength(ArrayLengthInstruction arrayLengthInst) {
+        var target = arrayLengthInst.getChildren().getFirst();
+        return apply(target) +
+                "arraylength\n";
     }
 }
