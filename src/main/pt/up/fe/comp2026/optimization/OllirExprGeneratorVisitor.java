@@ -1,7 +1,9 @@
 package pt.up.fe.comp2026.optimization;
 
 import pt.up.fe.comp.jmm.analysis.table.MethodSymbol;
+import pt.up.fe.comp.jmm.analysis.table.Signature;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
+import pt.up.fe.comp.jmm.analysis.table.reflection.Importer;
 import pt.up.fe.comp.jmm.analysis.table.type.JmmType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmArrayType;
 import pt.up.fe.comp.jmm.analysis.table.type.impls.JmmPrimitiveType;
@@ -9,6 +11,8 @@ import pt.up.fe.comp.jmm.ast.AJmmVisitor;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp2026.ast.TypeUtils;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static pt.up.fe.comp2026.jmm.ast.JmmKind.*;
@@ -223,8 +227,23 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         args.removeFirst();
         var methodType = types.getMethodCallTypeFC(node);
 
+        var tU = TypeUtils.with(table);
+        var methodName = node.get("func");
+        var params = node.getChildren(EXPR).subList(1, node.getChildren(EXPR).toArray().length).stream().map(p -> TypeUtils.with(table).getExprType(p)).toList();
+        var sig = new Signature(methodName, params);
+
         var called = TypeUtils.with(table).getExprType(accessed);
         var isStaticRef = called.asClass().staticRef();
+        var fqn = called.asClass().fullyQualifiedName();
+        SymbolTable tableTemp;
+
+        if(!fqn.equals(table.getFullyQualifiedName()))
+            tableTemp = Importer.fromThisClassPath().getSymbolTableOf(fqn).orElseThrow();
+        else
+            tableTemp = table;
+
+        var method = findMethod(tableTemp, sig, methodName, isStaticRef, tU, node);
+        var paramTypes = method.signature().parameters();
 
         var accessedRes = visit(accessed);
         var argsRes = args.stream().map(this::visit).toList();
@@ -232,6 +251,16 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         var computation = new StringBuilder();
         computation.append(accessedRes.getComputation());
         argsRes.forEach(ir -> computation.append(ir.getComputation()));
+
+        var castArgs = new ArrayList<String>();
+        for(int i = 0; i < argsRes.size(); i++) {
+            var argType = ollirTypes.toOllirType(paramTypes.get(i));
+            var temp = ollirTypes.nextTemp() + argType;
+            computation.append(temp).append(' ').append(ASSIGN)
+                    .append(argType).append(' ').append(argsRes.get(i).getCode()).append(END_STMT);
+            castArgs.add(temp);
+        }
+
         String code = "";
         if(methodType != JmmPrimitiveType.VOID) {
             code = ollirTypes.nextTemp() + ollirTypes.toOllirType(methodType);
@@ -241,7 +270,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         var invokeType = isStaticRef ? "invokestatic(" + called.asClass().name() : "invokevirtual(" + accessedRes.getCode();
 
         computation.append(invokeType).append(", \"").append(ollirTypes.sanitizeId(node.get("func"))).append("\"");
-        argsRes.forEach(ir -> computation.append(", ").append(ir.getCode()));
+        castArgs.forEach(ir -> computation.append(", ").append(ir));
         computation.append(')').append(ollirTypes.toOllirType(methodType)).append(END_STMT);
 
         return new OllirExprResult(code, computation);
@@ -333,5 +362,90 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
                     .append(SPACE).append(ASSIGN).append(accessType).append(SPACE).append(initVals.get(i).getCode()).append(END_STMT);
 
         return new OllirExprResult(code, computation);
+    }
+
+    //Copied from TYpeUtils... I don't like it, but I don't want to instantiate it either as it will fail with imported tables...
+    //I can't guarantee your sanity bellow this point... I hate Java and its inheritance, man...
+    private MethodSymbol findMethod(SymbolTable table, Signature sig, String methodName, boolean isStaticCall, TypeUtils tU, JmmNode call) {
+        SymbolTable curTable = table;
+
+        while(curTable != null) {
+            var possibilities = curTable.getMethods(methodName);
+            List<MethodSymbol> candidates = new ArrayList<>();
+
+            for(var p : possibilities)
+                if (isCompatible(p, sig, isStaticCall, tU))
+                    candidates.add(p);
+
+            //Get the best match. Long story short, this is my attempt at handling the filthy inheritance and its ambiguity
+            //Like imagine, if we have a(Fruit f, Apple a), a(Fruit f, Fruit f) and then a(new Apple(), new Apple()), which should be called? Ah, Apple extends Fruit
+            //And if we have a(Fruit f, Apple a), a(Apple a, Fruit f). Congratulations, different signatures but an ambiguity problem, I think.
+            //Basically, we have to check which is more specific, if any
+            //Do we even have to handle this kind of inheritance problem???
+            if(!candidates.isEmpty())
+                return mostSpecific(candidates, tU, call);
+
+            String fqn = curTable.getSuperFullyQualifiedName();
+            if(fqn == null)
+                break;
+
+            var imported = Importer.fromThisClassPath().getSymbolTableOf(fqn);
+            if(imported.isEmpty())
+                imported = Importer.fromThisClassPath().tryImplicitImport(fqn);
+
+            curTable = imported.orElse(null);
+        }
+
+        return null;
+    }
+
+    private boolean isCompatible(MethodSymbol method, Signature sig, boolean isStaticCall, TypeUtils tU) {
+        var candidateParams = method.signature().parameters();
+        var reqParams = sig.parameters();
+
+        if(candidateParams.size() != reqParams.size())
+            return false;
+        if(isStaticCall && !method.isStatic())
+            return false;
+
+        for(int i = 0; i < candidateParams.size(); i++)
+            if(!tU.isAssignable(candidateParams.get(i), reqParams.get(i)))
+                return false;
+
+        return true;
+    }
+
+    private MethodSymbol mostSpecific(List<MethodSymbol> candidates, TypeUtils tU, JmmNode call) {
+        var best = candidates.getFirst();
+        var ambiguous = false;
+
+        for(int i = 1; i < candidates.size(); i++) {
+            var cur = candidates.get(i);
+
+            var curIsBetter = isMoreSpecific(cur.signature(), best.signature(), tU); //Check if cur is more specific than best
+            var bestIsBetter = isMoreSpecific(best.signature(), cur.signature(), tU); //Check if best is more specific than cur
+
+            if(curIsBetter && !bestIsBetter) {  //Basically, if we found a better one
+                best = cur;
+                ambiguous = false;
+            }
+            else if(!curIsBetter && !bestIsBetter)  //The case I mentioned in findMethod (none is more specific than the other):
+                // "And if we have a(Fruit f, Apple a), a(Apple a, Fruit f). Congratulations, different signatures but an ambiguity problem, I think."
+                ambiguous = true;   //It sets us up for failure (unfortunately) unless we find a new best case
+        }
+
+        return best;
+    }
+
+    private boolean isMoreSpecific(Signature sig1, Signature sig2, TypeUtils tU) {
+        var params1 = sig1.parameters();
+        var params2 = sig2.parameters();
+
+        for (int i = 0; i < params1.size(); i++)
+            // If a param of dig1 is not assignable to its sig2 counterpart, then sig1 is, probably(?), not more specific than sig2
+            if (!tU.isAssignable(params2.get(i), params1.get(i))) //Note this might work (or not) because sig1 != sig2
+                return false;
+
+        return true;
     }
 }
