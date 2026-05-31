@@ -20,7 +20,9 @@ public class JasminUtils {
 
         fullClassnames = new HashMap<>();
 
-        fullClassnames.put("this", ollirResult.getOllirClass().getClassName());
+        fullClassnames.put("this", ollirResult.getOllirClass().getClassFullyQualifiedName());
+        fullClassnames.put(ollirResult.getOllirClass().getClassName(), ollirResult.getOllirClass().getClassFullyQualifiedName());
+        fullClassnames.put(ollirResult.getOllirClass().getClassFullyQualifiedName(), ollirResult.getOllirClass().getClassFullyQualifiedName());
 
         for (var fullImport : ollirResult.getOllirClass().getImports()) {
             var split = fullImport.split("\\.");
