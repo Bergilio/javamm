@@ -13,6 +13,7 @@ import pt.up.fe.specs.util.utilities.StringLines;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -32,6 +33,7 @@ public class JasminGenerator {
     private String code;
 
     private Method currentMethod;
+    private StackWorker stackWorker;
 
     private int labelCounter;
 
@@ -181,12 +183,13 @@ public class JasminGenerator {
                 .append(method.getMethodName()).append("()")
                 .append(types.getTypeDescriptor(method.getReturnType())).append(NL)
                 .append(TAB).append(".limit locals ").append(calculateLocals()).append(NL)
-                .append(TAB).append(".limit stack 1\n"); //Temp only
+                .append(TAB);
 
         for (var inst : method.getInstructions()) {
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
-            code.append(instCode);
+
+            code.append(".limit stack ").append(stackWorker.getMaxSize()).append(NL).append(instCode);
         }
         code.append(TAB).append("return\n").append(".end method\n");
         return code.toString();
@@ -195,12 +198,12 @@ public class JasminGenerator {
     private String generateMethod(Method method) {
         //System.out.println("STARTING METHOD " + method.getMethodName());
         // set method
-
+        currentMethod = method;
+        stackWorker = new StackWorker();
         if(method.isConstructMethod()) {
             return generateConstructor(method);
         }
 
-        currentMethod = method;
         int locals = calculateLocals();
 
         // Initialize utils, to have fresh labels
@@ -240,7 +243,7 @@ public class JasminGenerator {
         }
 
         // Add limits
-        code.append(TAB).append(".limit stack 99").append(NL);
+        code.append(TAB).append(".limit stack ").append(stackWorker.getMaxSize()).append(NL);
         //code.append(TAB).append(".limit locals 99").append(NL);
 
         code.append(TAB).append(bodyCode);
@@ -272,14 +275,17 @@ public class JasminGenerator {
                 var arrayOp = (ArrayOperand) lhs;
                 var reg = currentMethod.getVarTable().get(arrayOp.getName());
                 var index = arrayOp.getIndexOperands().getFirst();
-                code.append(types.getLoad(reg)).append(NL).append(apply(index)).append(apply(assign.getRhs()))
+                code.append(types.getLoad(reg, stackWorker)).append(NL).append(apply(index)).append(apply(assign.getRhs()))
                         .append(types.getTypePrefix(arrayOp.getType())).append("astore").append(NL);
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.pop();
             }
             else {
                 code.append(apply(assign.getRhs()));
                 var operand = (Operand) lhs;
                 var reg = currentMethod.getVarTable().get(operand.getName());
-                code.append(types.getStore(reg)).append(NL);
+                code.append(types.getStore(reg, stackWorker)).append(NL);
             }
             return code.toString();
         } finally {
@@ -326,12 +332,14 @@ public class JasminGenerator {
         if (literal.getType() instanceof BuiltinType bt) {
             if (bt.getKind() == BuiltinKind.INT32 || bt.getKind() == BuiltinKind.BOOLEAN) {
                 int value = Integer.parseInt(literal.getLiteral());
-                code.append(types.getConstInstruction(value)).append(NL);
+                code.append(types.getConstInstruction(value, stackWorker)).append(NL);
             }
             else {
+                stackWorker.push();
                 code.append("ldc ").append(literal.getLiteral()).append(NL);
             }
         } else {
+            stackWorker.push();
             code.append("ldc ").append(literal.getLiteral()).append(NL);
         }
 
@@ -342,23 +350,30 @@ public class JasminGenerator {
         // get register
         var reg = currentMethod.getVarTable().get(operand.getName());
 
-        return types.getLoad(reg) + NL;
+        return types.getLoad(reg, stackWorker) + NL;
     }
 
     private String generateArrayOperand(ArrayOperand arrayOperand) {
         var index = arrayOperand.getIndexOperands().getFirst();
         var reg = currentMethod.getVarTable().get(arrayOperand.getName());
         var arrayType = arrayOperand.getType();
-
-        return types.getLoad(reg) + NL + apply(index) +
+        var code = types.getLoad(reg, stackWorker) + NL + apply(index) +
                 types.getTypePrefix(arrayType) + "aload" + NL;
+        stackWorker.pop();
+        stackWorker.pop();
+        stackWorker.push();
+        return code;
     }
 
     private String generateUnaryOp(UnaryOpInstruction unaryOp) {
         var code = new StringBuilder();
         code.append(apply(unaryOp.getOperand()));
-        code.append("iconst_1").append(NL);
-        code.append("ixor").append(NL);
+        code.append("iconst_1").append(NL); //+1
+        stackWorker.push();
+        code.append("ixor").append(NL); //-2 + 1
+        stackWorker.pop();
+        stackWorker.pop();
+        stackWorker.push();
         return code.toString();
     }
 
@@ -371,14 +386,54 @@ public class JasminGenerator {
         var opType = binaryOp.getOperation().getOpType();
 
         switch (opType) {
-            case ADD -> code.append(typePrefix).append("add").append(NL);
-            case SUB -> code.append(typePrefix).append("sub").append(NL);
-            case MUL -> code.append(typePrefix).append("mul").append(NL);
-            case DIV -> code.append(typePrefix).append("div").append(NL);
-            case REM -> code.append(typePrefix).append("rem").append(NL);
-            case BITWISE_AND, LOGICAL_AND -> code.append(typePrefix).append("and").append(NL);
-            case BITWISE_OR,  LOGICAL_OR  -> code.append(typePrefix).append("or").append(NL);
-            case XOR -> code.append(typePrefix).append("xor").append(NL);
+            case ADD -> {
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.push();
+                code.append(typePrefix).append("add").append(NL);
+            }
+            case SUB -> {
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.push();
+                code.append(typePrefix).append("sub").append(NL);
+            }
+            case MUL -> {
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.push();
+                code.append(typePrefix).append("mul").append(NL);
+            }
+            case DIV -> {
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.push();
+                code.append(typePrefix).append("div").append(NL);
+            }
+            case REM -> {
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.push();
+                code.append(typePrefix).append("rem").append(NL);
+            }
+            case BITWISE_AND, LOGICAL_AND -> {
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.push();
+                code.append(typePrefix).append("and").append(NL);
+            }
+            case BITWISE_OR, LOGICAL_OR -> {
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.push();
+                code.append(typePrefix).append("or").append(NL);
+            }
+            case XOR -> {
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.push();
+                code.append(typePrefix).append("xor").append(NL);
+            }
             case LTH, GTH, LTE, GTE, EQ, NEQ -> {
                 var trueLabel = "cmp_true_" + (labelCounter++);
                 var endLabel  = "cmp_end_"  + (labelCounter++);
@@ -391,6 +446,9 @@ public class JasminGenerator {
                     case NEQ -> "if_icmpne";
                     default  -> throw new RuntimeException("unreachable");
                 };
+                stackWorker.pop();
+                stackWorker.pop();
+                stackWorker.push();
                 code.append(branch).append(" ").append(trueLabel).append(NL)
                         .append("iconst_0").append(NL)
                         .append("goto ").append(endLabel).append(NL)
@@ -412,6 +470,7 @@ public class JasminGenerator {
         var code = new StringBuilder();
         code.append(apply(condInst.getCondition().getSingleOperand()));
         code.append("ifne ").append(condInst.getLabel()).append(NL);
+        stackWorker.pop();
         return code.toString();
     }
 
@@ -420,6 +479,8 @@ public class JasminGenerator {
         var cond = (BinaryOpInstruction) condInst.getCondition();
         code.append(apply(cond.getLeftOperand()));
         code.append(apply(cond.getRightOperand()));
+        stackWorker.pop();
+        stackWorker.pop();
         var branchInstr = switch (cond.getOperation().getOpType()) {
             case LTH -> "if_icmplt";
             case GTH -> "if_icmpgt";
@@ -450,6 +511,11 @@ public class JasminGenerator {
 
         code.append("invokevirtual ").append(className.replace('.', '/'))
                 .append("/").append(methodName).append("(").append(paramDesc).append(")").append(returnDesc).append(NL);
+        stackWorker.pop();
+        for(int i = 0; i < invokeInst.getArguments().size(); i++)
+            stackWorker.pop();
+        if(!Objects.equals(returnDesc, "V"))
+            stackWorker.push();
 
         return code.toString();
     }
@@ -476,6 +542,10 @@ public class JasminGenerator {
         code.append("invokestatic ").append(className.replace('.', '/'))
                 .append("/").append(methodName)
                 .append("(").append(paramDesc).append(")").append(returnDesc).append(NL);
+        for(int i = 0; i < invokeInst.getArguments().size(); i++)
+            stackWorker.pop();
+        if(!Objects.equals(returnDesc, "V"))
+            stackWorker.push();
 
         return code.toString();
     }
@@ -489,8 +559,9 @@ public class JasminGenerator {
 
         // Load operand into the stack, if present
         returnInst.getOperand().ifPresent(op -> code.append(apply(op)));
-
         code.append(typePrefix).append("return").append(NL);
+        if(!typePrefix.isEmpty())
+            stackWorker.pop();
 
         return code.toString();
     }
@@ -514,6 +585,9 @@ public class JasminGenerator {
         // 5. Build the invokespecial instruction with the correct parameters
         code.append("invokespecial ").append(className.replace('.', '/'))
                 .append("/").append(method).append("(").append(params).append(")V\n");
+        stackWorker.pop();
+        for(int i = 0; i < invokeInst.getArguments().size(); i++)
+            stackWorker.pop();
 
         return code.toString();
     }
@@ -524,6 +598,7 @@ public class JasminGenerator {
         if(operand.getType() instanceof ClassType) {
             var name = ((ClassType) operand.getType()).getName();
             code.append("new ").append(getFullClassName(name)).append(NL);
+            stackWorker.push();
         }
         else if(operand.getType() instanceof ArrayType array) { //It is an array
             var size = newInstruction.getOperands().getLast();
@@ -547,7 +622,8 @@ public class JasminGenerator {
             else {
                 throw new RuntimeException("Unknown array type");
             }
-
+            stackWorker.pop();
+            stackWorker.push();
             code.append(newArray).append(elemType).append(NL);
         }
 
@@ -559,19 +635,23 @@ public class JasminGenerator {
         var ref = putFieldInst.getOperands().getFirst();
         var field = putFieldInst.getField();
         var val = putFieldInst.getOperands().getLast();
-
-        return apply(ref) + apply(val) + "putfield " + types.getFullClassName(((ClassType) ref.getType()).getName()) +
+        var code = apply(ref) + apply(val) + "putfield " + types.getFullClassName(((ClassType) ref.getType()).getName()) +
                 "/" + field.getName() + " " + types.getTypeDescriptor(field.getType()) +
                 NL;
+        stackWorker.pop();
+        stackWorker.pop();
+        return code;
     }
 
     private String generateGetFieldInst(GetFieldInstruction getFieldInst) {
         var ref = getFieldInst.getOperands().getFirst();
         var field = getFieldInst.getField();
-
-        return apply(ref) + "getfield " + types.getFullClassName(((ClassType) ref.getType()).getName()) +
+        var code = apply(ref) + "getfield " + types.getFullClassName(((ClassType) ref.getType()).getName()) +
                 "/" + field.getName() + " " + types.getTypeDescriptor(field.getType()) +
                 NL;
+        stackWorker.pop();
+        stackWorker.push();
+        return code;
     }
 
     private String getFullClassName(String name) {
@@ -592,7 +672,10 @@ public class JasminGenerator {
 
     private String generateArrayLength(ArrayLengthInstruction arrayLengthInst) {
         var target = arrayLengthInst.getChildren().getFirst();
-        return apply(target) +
+        var code = apply(target) +
                 "arraylength\n";
+        stackWorker.pop();
+        stackWorker.push();
+        return code;
     }
 }

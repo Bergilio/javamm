@@ -78,10 +78,10 @@ public class JasminUtils {
         return accessModifier.name().toLowerCase() + " ";
     }
 
-    public String getLoad(Descriptor reg) {
+    public String getLoad(Descriptor reg, StackWorker sw) {
         var prefix = getTypePrefix(reg.getVarType());
         var value = reg.getVirtualReg();
-
+        sw.push();
         if (value >= 0 && value <= 3) {
             return prefix + "load_" + value;
         }
@@ -89,10 +89,10 @@ public class JasminUtils {
         return prefix + "load " + value;
     }
 
-    public String getStore(Descriptor reg) {
+    public String getStore(Descriptor reg, StackWorker sw) {
         var prefix = getTypePrefix(reg.getVarType());
         var value = reg.getVirtualReg();
-
+        sw.pop();
         if (value >= 0 && value <= 3) {
             return prefix + "store_" + value;
         }
@@ -100,7 +100,8 @@ public class JasminUtils {
         return prefix + "store " + value;
     }
 
-    public String getConstInstruction(int value) {
+    public String getConstInstruction(int value, StackWorker sw) {
+        sw.push();
         if (value == -1) {
             return "iconst_m1";
         }
