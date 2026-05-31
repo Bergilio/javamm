@@ -134,39 +134,6 @@ public class JasminUtils {
         return descriptor.toString();
     }
 
-    public String getArrayLoadInstruction(Type elementType) {
-        if (elementType instanceof BuiltinType builtinType) {
-            return switch (builtinType.getKind()) {
-                case INT32 -> "iaload";
-                case BOOLEAN -> "baload";
-                default -> "aaload";
-            };
-        }
-        return "aaload";
-    }
-
-    public String getArrayStoreInstruction(Type elementType) {
-        if (elementType instanceof BuiltinType builtinType) {
-            return switch (builtinType.getKind()) {
-                case INT32 -> "iastore";
-                case BOOLEAN -> "bastore";
-                default -> "aastore";
-            };
-        }
-        return "aastore";
-    }
-
-    public String getArrayTypeCode(Type elementType) {
-        if (elementType instanceof BuiltinType builtinType) {
-            return switch (builtinType.getKind()) {
-                case INT32 -> "int";
-                case BOOLEAN -> "boolean";
-                default -> throw new RuntimeException("Unsupported array element type: " + builtinType.getKind());
-            };
-        }
-        throw new RuntimeException("newarray only supports primitive types");
-    }
-
     public String getReturnInstruction(Type returnType) {
         if (returnType instanceof BuiltinType builtinType) {
             return switch (builtinType.getKind()) {

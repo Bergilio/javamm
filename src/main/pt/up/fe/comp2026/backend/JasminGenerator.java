@@ -7,15 +7,12 @@ import org.specs.comp.ollir.type.*;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
 import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp2026.optimization.OptUtils;
-import pt.up.fe.specs.util.SpecsCheck;
 import pt.up.fe.specs.util.classmap.FunctionClassMap;
 import pt.up.fe.specs.util.exceptions.NotImplementedException;
 import pt.up.fe.specs.util.utilities.StringLines;
 
-import java.lang.annotation.ElementType;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -75,6 +72,8 @@ public class JasminGenerator {
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
         generators.put(NewInstruction.class, this::generateNew);
         generators.put(ArrayLengthInstruction.class, this::generateArrayLength);
+        generators.put(PutFieldInstruction.class, this::generatePutFieldInst);
+        generators.put(GetFieldInstruction.class, this::generateGetFieldInst);
     }
 
 
@@ -325,13 +324,11 @@ public class JasminGenerator {
         var code = new StringBuilder();
 
         if (literal.getType() instanceof BuiltinType bt) {
-            if (bt.getKind() == BuiltinKind.INT32) {
+            if (bt.getKind() == BuiltinKind.INT32 || bt.getKind() == BuiltinKind.BOOLEAN) {
                 int value = Integer.parseInt(literal.getLiteral());
                 code.append(types.getConstInstruction(value)).append(NL);
-            } else if (bt.getKind() == BuiltinKind.BOOLEAN) {
-                int value = literal.getLiteral().equals("true") ? 1 : 0;
-                code.append(types.getConstInstruction(value)).append(NL);
-            } else {
+            }
+            else {
                 code.append("ldc ").append(literal.getLiteral()).append(NL);
             }
         } else {
@@ -555,6 +552,26 @@ public class JasminGenerator {
         }
 
         return code.toString();
+    }
+
+
+    private String generatePutFieldInst(PutFieldInstruction putFieldInst) {
+        var ref = putFieldInst.getOperands().getFirst();
+        var field = putFieldInst.getField();
+        var val = putFieldInst.getOperands().getLast();
+
+        return apply(ref) + apply(val) + "putfield " + types.getFullClassName(((ClassType) ref.getType()).getName()) +
+                "/" + field.getName() + " " + types.getTypeDescriptor(field.getType()) +
+                NL;
+    }
+
+    private String generateGetFieldInst(GetFieldInstruction getFieldInst) {
+        var ref = getFieldInst.getOperands().getFirst();
+        var field = getFieldInst.getField();
+
+        return apply(ref) + "getfield " + types.getFullClassName(((ClassType) ref.getType()).getName()) +
+                "/" + field.getName() + " " + types.getTypeDescriptor(field.getType()) +
+                NL;
     }
 
     private String getFullClassName(String name) {
