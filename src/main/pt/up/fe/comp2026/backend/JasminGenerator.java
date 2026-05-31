@@ -633,8 +633,6 @@ public class JasminGenerator {
             stackWorker.push();
         }
         else if(operand.getType() instanceof ArrayType array) { //It is an array
-            var size = newInstruction.getOperands().getLast();
-            code.append(apply(size));
             var type = array.getElementType();
             String elemType = "";
             String newArray = "newarray ";
@@ -654,8 +652,21 @@ public class JasminGenerator {
             else {
                 throw new RuntimeException("Unknown array type");
             }
-            stackWorker.pop();
+
+            var ops = newInstruction.getOperands();
+            for(int i = 1; i <= array.getNumDimensions(); i++)
+                code.append(apply(ops.get(i)));
+
+            for(int i = 0; i < array.getNumDimensions(); i++)
+                stackWorker.pop();
             stackWorker.push();
+
+            if(array.getNumDimensions() > 1) {
+                newArray = "multianewarray ";
+                elemType = "[".repeat(array.getNumDimensions()) + types.getTypeDescriptor(type)
+                        + " " + array.getNumDimensions();
+            }
+
             code.append(newArray).append(elemType).append(NL);
         }
 

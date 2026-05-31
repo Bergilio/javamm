@@ -54,7 +54,7 @@ public class JasminUtils {
         }
 
         if (type instanceof ArrayType arrayType) {
-            return "[" + getTypeDescriptor(arrayType.getElementType());
+            return "[".repeat(arrayType.getNumDimensions()) + getTypeDescriptor(arrayType.getElementType());
         }
 
         if (type instanceof ClassType classType) {
