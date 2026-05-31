@@ -3,10 +3,7 @@ package pt.up.fe.comp2026.backend;
 import org.specs.comp.ollir.*;
 import org.specs.comp.ollir.inst.*;
 import org.specs.comp.ollir.tree.TreeNode;
-import org.specs.comp.ollir.type.ArrayType;
-import org.specs.comp.ollir.type.BuiltinKind;
-import org.specs.comp.ollir.type.BuiltinType;
-import org.specs.comp.ollir.type.ClassType;
+import org.specs.comp.ollir.type.*;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
 import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp2026.optimization.OptUtils;
@@ -15,6 +12,7 @@ import pt.up.fe.specs.util.classmap.FunctionClassMap;
 import pt.up.fe.specs.util.exceptions.NotImplementedException;
 import pt.up.fe.specs.util.utilities.StringLines;
 
+import java.lang.annotation.ElementType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -511,6 +509,31 @@ public class JasminGenerator {
         if(operand.getType() instanceof ClassType) {
             var name = ((ClassType) operand.getType()).getName();
             code.append("new ").append(getFullClassName(name)).append(NL);
+        }
+        else if(operand.getType() instanceof ArrayType array) { //It is an array
+            var size = newInstruction.getOperands().getLast();
+            code.append(apply(size));
+            var type = array.getElementType();
+            String elemType = "";
+            String newArray = "newarray ";
+            if (type instanceof BuiltinType builtinType) {
+                switch (builtinType.getKind()) {
+                    case INT32 -> elemType = "int";
+                    case BOOLEAN -> elemType = "boolean";
+                    case VOID -> throw new RuntimeException("Unknown array type");
+                    case STRING -> elemType = "java/lang/String";
+                };
+            }
+            else if (type instanceof ClassType classType) {
+                var name = classType.getName();
+                elemType = getFullClassName(name);
+                newArray = "anewarray ";
+            }
+            else {
+                throw new RuntimeException("Unknown array type");
+            }
+
+            code.append(newArray).append(elemType).append(NL);
         }
 
         return code.toString();

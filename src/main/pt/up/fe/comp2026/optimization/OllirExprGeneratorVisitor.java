@@ -216,6 +216,7 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
 
         var computation = new StringBuilder();
         var id = ollirTypes.nextTemp();
+        computation.append(arrayRef.getComputation());
         computation.append(TAB).append(id).append(".i32").append(SPACE).append(ASSIGN).append(".i32").append(SPACE).append("arraylength(").append(arrayRef.getCode()).append(").i32").append(END_STMT);
         var code = id + ".i32";
         return new OllirExprResult(code, computation);
