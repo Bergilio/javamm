@@ -185,18 +185,18 @@ public class JasminGenerator {
                 .append(TAB).append(".limit locals ").append(calculateLocals()).append(NL)
                 .append(TAB);
 
+        var bodyCode = new StringBuilder();
         for (var inst : method.getInstructions()) {
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
-
-            code.append(".limit stack ").append(stackWorker.getMaxSize()).append(NL).append(instCode);
+            bodyCode.append(instCode).append(handleStackLeak(inst));
         }
+        code.append(".limit stack ").append(stackWorker.getMaxSize()).append(NL).append(bodyCode);
         code.append(TAB).append("return\n").append(".end method\n");
         return code.toString();
     }
 
     private String generateMethod(Method method) {
-        //System.out.println("STARTING METHOD " + method.getMethodName());
         // set method
         currentMethod = method;
         stackWorker = new StackWorker();
@@ -239,7 +239,7 @@ public class JasminGenerator {
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
 
-            bodyCode.append(instCode);
+            bodyCode.append(instCode).append(handleStackLeak(inst));
         }
 
         // Add limits
@@ -249,11 +249,35 @@ public class JasminGenerator {
         code.append(TAB).append(bodyCode);
 
         code.append(".end method\n");
-        //System.out.println("METHOD:\n" + code);
         // unset method
         currentMethod = null;
-        //System.out.println("ENDING METHOD " + method.getMethodName());
         return code.toString();
+    }
+
+    //Used to check for useless results like useless returns or ops
+    private String handleStackLeak(Instruction inst) {
+        if (inst instanceof InvokeVirtualInstruction invoke) {
+            var returnDesc = types.getTypeDescriptor(invoke.getReturnType());
+            if (!returnDesc.equals("V")) {
+                stackWorker.pop();
+                return "pop" + NL;
+            }
+        }
+        else if (inst instanceof InvokeStaticInstruction invoke) {
+            var returnDesc = types.getTypeDescriptor(invoke.getReturnType());
+            if (!returnDesc.equals("V")) {
+                stackWorker.pop();
+                return "pop" + NL;
+            }
+        }
+        else if (inst instanceof SingleOpInstruction singleOp) {
+            var type = singleOp.getSingleOperand().getType();
+            if (!(type instanceof BuiltinType builtinType && builtinType.getKind() == BuiltinKind.VOID)) {
+                stackWorker.pop();
+                return "pop" + NL;
+            }
+        }
+        return "";
     }
 
     private String generateAssign(AssignInstruction assign) {
@@ -476,21 +500,29 @@ public class JasminGenerator {
 
     private String generateOpCond(OpCondInstruction condInst) {
         var code = new StringBuilder();
-        var cond = (BinaryOpInstruction) condInst.getCondition();
-        code.append(apply(cond.getLeftOperand()));
-        code.append(apply(cond.getRightOperand()));
-        stackWorker.pop();
-        stackWorker.pop();
-        var branchInstr = switch (cond.getOperation().getOpType()) {
-            case LTH -> "if_icmplt";
-            case GTH -> "if_icmpgt";
-            case LTE -> "if_icmple";
-            case GTE -> "if_icmpge";
-            case EQ  -> "if_icmpeq";
-            case NEQ -> "if_icmpne";
-            default  -> throw new RuntimeException("Unknown condition op: " + cond.getOperation().getOpType());
-        };
-        code.append(branchInstr).append(" ").append(condInst.getLabel()).append(NL);
+        var cond = condInst.getCondition();
+        if(cond instanceof BinaryOpInstruction binOp) {
+            code.append(apply(binOp.getLeftOperand()));
+            code.append(apply(binOp.getRightOperand()));
+            stackWorker.pop();
+            stackWorker.pop();
+            var branchInstr = switch (binOp.getOperation().getOpType()) {
+                case LTH -> "if_icmplt";
+                case GTH -> "if_icmpgt";
+                case LTE -> "if_icmple";
+                case GTE -> "if_icmpge";
+                case EQ -> "if_icmpeq";
+                case NEQ -> "if_icmpne";
+                default -> throw new RuntimeException("Unknown condition op: " + binOp.getOperation().getOpType());
+            };
+            code.append(branchInstr).append(" ").append(condInst.getLabel()).append(NL);
+        }
+        else {
+            var unOp = (UnaryOpInstruction) cond; //It should be a !, right?
+            code.append(apply(unOp.getOperand()));
+            stackWorker.pop();
+            code.append("ifeq ").append(condInst.getLabel()).append(NL);
+        }
         return code.toString();
     }
 
