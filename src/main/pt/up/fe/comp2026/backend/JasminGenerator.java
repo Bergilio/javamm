@@ -62,6 +62,7 @@ public class JasminGenerator {
         generators.put(AssignInstruction.class, this::generateAssign);
         generators.put(SingleOpInstruction.class, this::generateSingleOp);
         generators.put(LiteralElement.class, this::generateLiteral);
+        generators.put(ArrayOperand.class, this::generateArrayOperand);
         generators.put(Operand.class, this::generateOperand);
         generators.put(UnaryOpInstruction.class, this::generateUnaryOp);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
@@ -268,11 +269,19 @@ public class JasminGenerator {
                 }
             }
 
-            code.append(apply(assign.getRhs()));
-            var operand = (Operand) lhs;
-            var reg = currentMethod.getVarTable().get(operand.getName());
-            code.append(types.getStore(reg)).append(NL);
-
+            if(lhs instanceof ArrayOperand) {
+                var arrayOp = (ArrayOperand) lhs;
+                var reg = currentMethod.getVarTable().get(arrayOp.getName());
+                var index = arrayOp.getIndexOperands().getFirst();
+                code.append(types.getLoad(reg)).append(NL).append(apply(index)).append(apply(assign.getRhs()))
+                        .append(types.getTypePrefix(arrayOp.getType())).append("astore").append(NL);
+            }
+            else {
+                code.append(apply(assign.getRhs()));
+                var operand = (Operand) lhs;
+                var reg = currentMethod.getVarTable().get(operand.getName());
+                code.append(types.getStore(reg)).append(NL);
+            }
             return code.toString();
         } finally {
             isInsideAssignment = false;
@@ -337,6 +346,15 @@ public class JasminGenerator {
         var reg = currentMethod.getVarTable().get(operand.getName());
 
         return types.getLoad(reg) + NL;
+    }
+
+    private String generateArrayOperand(ArrayOperand arrayOperand) {
+        var index = arrayOperand.getIndexOperands().getFirst();
+        var reg = currentMethod.getVarTable().get(arrayOperand.getName());
+        var arrayType = arrayOperand.getType();
+
+        return types.getLoad(reg) + NL + apply(index) +
+                types.getTypePrefix(arrayType) + "aload" + NL;
     }
 
     private String generateUnaryOp(UnaryOpInstruction unaryOp) {

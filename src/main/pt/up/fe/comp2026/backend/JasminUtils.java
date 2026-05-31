@@ -38,8 +38,6 @@ public class JasminUtils {
                 default -> "a";
             };
         }
-        if (type instanceof ArrayType) return "a";
-        if (type instanceof ClassType) return "a";
         return "a";
     }
 
