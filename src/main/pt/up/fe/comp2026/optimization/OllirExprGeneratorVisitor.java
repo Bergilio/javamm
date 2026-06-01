@@ -148,7 +148,6 @@ public class OllirExprGeneratorVisitor extends AJmmVisitor<Void, OllirExprResult
         var code = "";
         var prev = arrayExpr.getCode();
 
-
         computation.append(arrayExpr.getComputation());
         indexResults.forEach(ir -> computation.append(ir.getComputation()));
 

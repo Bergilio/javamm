@@ -122,7 +122,17 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         indexResults.forEach(ir -> code.append(ir.getComputation()));
         code.append(rhs.getComputation());
 
-        var prev = ollirTypes.sanitizeId(varName) + typeString;
+        String prev = "";
+
+        if(!(currentMethod.getParameter(varName).isPresent() || currentMethod.getLocalVariable(varName).isPresent())) {
+            var ollirType = ollirTypes.toOllirType(table.getField(varName).get().type());
+            var temp = ollirTypes.nextTemp() + ollirType;
+            code.append(TAB).append(temp).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
+                    .append("getfield(this, ").append(varName).append(ollirType).append(")").append(ollirType).append(END_STMT);
+            prev = temp;
+        }
+        else
+            prev = ollirTypes.sanitizeId(varName) + typeString;
         for(int i = 0; i < indexResults.size() - 1; i++) {
             var index = indexResults.get(i);
             var temp = ollirTypes.nextTemp();
