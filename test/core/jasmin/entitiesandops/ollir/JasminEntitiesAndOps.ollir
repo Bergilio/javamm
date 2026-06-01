@@ -1,0 +1,18 @@
+package core.jasmin.entitiesandops.ollir;
+
+JasminEntitiesAndOps {
+
+
+.construct "<init>"().V {
+	invokespecial(this."java.lang.Object", "<init>").V;
+}
+
+.method public method(i.i32).bool {
+	tmp0.i32 :=.i32 i.i32 +.i32 1.i32;
+	i.i32 :=.i32 tmp0.i32;
+	tmp1.bool :=.bool i.i32 ==.bool 0.i32;
+	b.bool :=.bool tmp1.bool;
+	ret.bool b.bool;
+}
+
+}

@@ -1,0 +1,9 @@
+package core.jasmin.entitiesandops.jmm;
+
+class JasminEntitiesAndOps {
+    public boolean method(int i) {
+        boolean b;
+        b = (++i) == 0;
+        return b;
+    }
+}

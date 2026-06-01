@@ -1,0 +1,20 @@
+package core.jasmin.calls.jmm;
+
+class JasminCall {
+    int a;
+
+    public int double() {
+        return a * 2;
+    }
+
+    public static int zero() {
+        return 0;
+    }
+
+    public int method() {
+        int b;
+        b  = double();
+        b = JasminCall.zero();
+        return b;
+    }
+}

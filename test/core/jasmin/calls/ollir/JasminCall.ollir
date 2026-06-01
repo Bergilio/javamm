@@ -1,0 +1,29 @@
+package core.jasmin.calls.ollir;
+
+JasminCall {
+
+.field a.i32;
+
+.construct "<init>"().V {
+	invokespecial(this."java.lang.Object", "<init>").V;
+}
+
+.method public double().i32 {
+	tmp0.i32 :=.i32 getfield(this, a.i32).i32;
+	tmp1.i32 :=.i32 tmp0.i32 *.i32 2.i32;
+	ret.i32 tmp1.i32;
+}
+
+.method public static zero().i32 {
+	ret.i32 0.i32;
+}
+
+.method public method().i32 {
+	tmp2.i32 :=.i32 invokevirtual(this.JasminCall, "double").i32;
+	b.i32 :=.i32 tmp2.i32;
+	tmp3.i32 :=.i32 invokestatic(JasminCall, "zero").i32;
+	b.i32 :=.i32 tmp3.i32;
+	ret.i32 b.i32;
+}
+
+}

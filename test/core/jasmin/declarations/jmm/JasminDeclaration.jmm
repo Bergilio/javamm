@@ -1,0 +1,9 @@
+package core.jasmin.declarations.jmm;
+
+class JasminDeclaration {
+    protected int foo() {
+        return a;
+    }
+
+    int a = 2;
+}

@@ -1,0 +1,17 @@
+package core.jasmin.declarations.ollir;
+
+JasminDeclaration {
+
+.field a.i32;
+
+.construct "<init>"().V {
+	invokespecial(this."java.lang.Object", "<init>").V;
+	putfield(this, a.i32, 2.i32).V;
+}
+
+.method protected foo().i32 {
+	tmp0.i32 :=.i32 getfield(this, a.i32).i32;
+	ret.i32 tmp0.i32;
+}
+
+}
