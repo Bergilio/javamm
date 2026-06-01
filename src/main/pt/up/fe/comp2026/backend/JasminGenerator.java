@@ -502,19 +502,53 @@ public class JasminGenerator {
         var code = new StringBuilder();
         var cond = condInst.getCondition();
         if(cond instanceof BinaryOpInstruction binOp) {
-            code.append(apply(binOp.getLeftOperand()));
-            code.append(apply(binOp.getRightOperand()));
-            stackWorker.pop();
-            stackWorker.pop();
-            var branchInstr = switch (binOp.getOperation().getOpType()) {
-                case LTH -> "if_icmplt";
-                case GTH -> "if_icmpgt";
-                case LTE -> "if_icmple";
-                case GTE -> "if_icmpge";
-                case EQ -> "if_icmpeq";
-                case NEQ -> "if_icmpne";
-                default -> throw new RuntimeException("Unknown condition op: " + binOp.getOperation().getOpType());
-            };
+            var leftOp = binOp.getLeftOperand();
+            var rightOp = binOp.getRightOperand();
+            var leftIsZ = leftOp.isLiteral() && ((LiteralElement) leftOp).getLiteral().equals("0");
+            var rightIsZ = rightOp.isLiteral() && ((LiteralElement) rightOp).getLiteral().equals("0");
+
+            String branchInstr;
+            if(rightIsZ) {
+                code.append(apply(binOp.getLeftOperand()));
+                stackWorker.pop();
+                branchInstr = switch (binOp.getOperation().getOpType()) {
+                    case LTH -> "iflt";
+                    case GTH -> "ifgt";
+                    case LTE -> "ifle";
+                    case GTE -> "ifge";
+                    case EQ -> "ifeq";
+                    case NEQ -> "ifne";
+                    default -> throw new RuntimeException("Unknown condition op: " + binOp.getOperation().getOpType());
+                };
+            }
+            else if (leftIsZ) {
+                code.append(apply(binOp.getRightOperand()));
+                stackWorker.pop();
+                branchInstr = switch (binOp.getOperation().getOpType()) {
+                    case LTH -> "ifgt";
+                    case GTH -> "iflt";
+                    case LTE -> "ifge";
+                    case GTE -> "ifle";
+                    case EQ -> "ifeq";
+                    case NEQ -> "ifne";
+                    default -> throw new RuntimeException("Unknown condition op: " + binOp.getOperation().getOpType());
+                };
+            }
+            else {
+                code.append(apply(binOp.getLeftOperand()));
+                code.append(apply(binOp.getRightOperand()));
+                stackWorker.pop();
+                stackWorker.pop();
+                branchInstr = switch (binOp.getOperation().getOpType()) {
+                    case LTH -> "if_icmplt";
+                    case GTH -> "if_icmpgt";
+                    case LTE -> "if_icmple";
+                    case GTE -> "if_icmpge";
+                    case EQ -> "if_icmpeq";
+                    case NEQ -> "if_icmpne";
+                    default -> throw new RuntimeException("Unknown condition op: " + binOp.getOperation().getOpType());
+                };
+            }
             code.append(branchInstr).append(" ").append(condInst.getLabel()).append(NL);
         }
         else {
