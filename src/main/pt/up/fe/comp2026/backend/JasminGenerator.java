@@ -149,6 +149,8 @@ public class JasminGenerator {
             if (!mod.isEmpty()) {
                 code.append(mod);
             }
+            else
+                code.append("public ");
 
             if (!staticMod.isEmpty()) {
                 code.append(staticMod);
@@ -179,7 +181,7 @@ public class JasminGenerator {
         utils = new OptUtils(null);
         currentMethod = method;
         var code = new StringBuilder();
-        code.append(".method ").append(types.getModifier(currentMethod.getMethodAccessModifier()))
+        code.append(".method ").append("public ")
                 .append(method.getMethodName()).append("()")
                 .append(types.getTypeDescriptor(method.getReturnType())).append(NL)
                 .append(TAB).append(".limit locals ").append(calculateLocals()).append(NL)
@@ -639,14 +641,13 @@ public class JasminGenerator {
         code.append(apply(target));
 
         var params = new StringBuilder();
-        for (int i = 1; i < invokeInst.getChildren().size() - 1; i++) { //The last one is the constructor name, I believe
-            var arg = invokeInst.getOperands().get(i);
+        for (var arg : invokeInst.getArguments()) {
             code.append(apply(arg));
             params.append(types.getTypeDescriptor(arg.getType()));
         }
 
         var className = getFullClassName(((ClassType) target.getType()).getName());
-        var method = ((LiteralElement) invokeInst.getChildren().getLast()).getLiteral();
+        var method = ((LiteralElement) invokeInst.getChildren().get(1)).getLiteral();
 
         // 5. Build the invokespecial instruction with the correct parameters
         code.append("invokespecial ").append(className.replace('.', '/'))
@@ -712,7 +713,7 @@ public class JasminGenerator {
         var ref = putFieldInst.getOperands().getFirst();
         var field = putFieldInst.getField();
         var val = putFieldInst.getOperands().getLast();
-        var code = apply(ref) + apply(val) + "putfield " + types.getFullClassName(((ClassType) ref.getType()).getName()) +
+        var code = apply(ref) + apply(val) + "putfield " + types.getFullClassName(((ClassType) ref.getType()).getName()).replace('.', '/') +
                 "/" + field.getName() + " " + types.getTypeDescriptor(field.getType()) +
                 NL;
         stackWorker.pop();

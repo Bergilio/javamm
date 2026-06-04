@@ -72,7 +72,7 @@ public class JasminUtils {
     public String getModifier(AccessModifier accessModifier) {
         // Default access modifier is empty string
         if (accessModifier == AccessModifier.DEFAULT) {
-            return "public ";
+            return "";
         }
 
         return accessModifier.name().toLowerCase() + " ";
