@@ -185,12 +185,13 @@ public class RegisterAllocator {
 
         while (!remaining.isEmpty()) {
             String toRemove = null;
+            long minDegree = Long.MAX_VALUE;
             for (var v : remaining) {
                 long degree = graph.getOrDefault(v, Set.of()).stream()
                         .filter(remaining::contains).count();
-                if (degree < effectiveColors) {
+                if (degree < effectiveColors && degree < minDegree) {
                     toRemove = v;
-                    break;
+                    minDegree = degree;
                 }
             }
 
